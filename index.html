@@ -1831,6 +1831,83 @@ const isPhaseStart=index=>index===0||(stages[index]||[])[2]!==(stages[index-1]||
 /* ===== 阶段折叠 =====
    这是视图偏好而不是画布数据，所以单独存 localStorage，不进 payload / 撤销栈，
    免得「折叠一下」污染历史记录、也免得同步到数据文件里影响别人打开时的视图。 */
+/* ═════ 分享导出：哪些存档位跟着走 ═════
+ *
+ * 页面的改动不是只存一处，一共 13 个存档位。要「以浏览器那份为准」
+ * 把页面发给别人，就得把它们一起带走 —— 原来只带了 5 类结构数据，
+ * 画布、评论、文字修改、状态标签、隐藏行、系统标签全丢在本机。
+ *
+ * 显式清单，不用 Object.keys(localStorage) 全带：
+ * 那样会把下面两个也带上，而它们带上就是 bug。
+ */
+const SHARE_STORE_KEYS = [
+  /* 画布本体：节点、连线、阶段、角色、系统、泳道，外加评论和变更记录 */
+  'ckfm-asset-registration-v1',
+  /* 蓝图上的各类改动 */
+  'asset-blueprint-user-edits-v1',    /* 卡片与备注的文字修改 */
+  'asset-blueprint-struct-v1',        /* 加过／移动过的步骤 */
+  'asset-blueprint-hidden-v1',        /* 隐藏掉的行与元素 */
+  'asset-blueprint-chips-v1',         /* 自己加的状态标签 */
+  'asset-blueprint-chipcolor-v1',     /* 标签改过的颜色 */
+  'asset-blueprint-cards-v1',         /* 追加的角色行为卡 */
+  'asset-blueprint-systags-v1',       /* 选过的系统标签 */
+  /* 看的时候摊开／折起的样子，一起带走，别人打开就是你排好的版 */
+  'asset-blueprint-foldgroups-v1',
+  'ckfm-journey-collapsed-stages',
+  'ckfm-journey-show-hidden',
+  /* 一次性迁移的标记。这几个必须跟着数据走，否则别人打开时迁移是「第一次跑」，
+     会拿你的数据再跑一遍历史迁移，把状态改掉。
+     实测：不带 default-hidden 这个标记，seedDefaultHiddenCols() 会在对方浏览器里
+     把「关联电梯」那一列重新塞回隐藏集并存盘 —— 种回去的隐藏状态当场被改。
+     以后代码里新增迁移，新标记不在快照里，照样会跑，行为仍然正确。 */
+  'asset-blueprint-default-hidden-v1',
+  'asset-blueprint-alltext-bytitle-v1',
+  'asset-blueprint-s9-dec5-recut-v2',
+  'asset-blueprint-seeded-notes-cleared-v1',
+  'ckfm-flow3-data-version',
+];
+/* 故意不带的两个，各有具体理由：
+ *
+ * asset-blueprint-custom-v4
+ *   结构快照。它已经由 __ASSET_EMBEDDED_DATA 这条路带走了，不能再种进
+ *   localStorage —— loadBlueprint 只在「取用的是内嵌那份」时才套结构
+ *   （if (d === embedded)）。一旦 local 也存在，两边 savedAt 完全相同，
+ *   `embedded.savedAt > local.savedAt` 不成立，就会走 local 分支、结构不套，
+ *   正好把你加过的步骤悄悄吃掉。这是种全量会踩的坑，所以必须排除。
+ *
+ * ckfm-journey-user-name
+ *   你的署名。种给别人，他留的评论会署成你的名字。
+ */
+const SHARE_STORE_SKIP = ['asset-blueprint-custom-v4', 'ckfm-journey-user-name'];
+const SHARE_SEEDED_MARK = 'asset-blueprint-embedded-seeded-at';
+/* 把内嵌的存档快照种回 localStorage。
+ *
+ * 只在「还没种过」或「这份比种过的更新」时写，所以：
+ *   别人第一次打开分享链接 → 种，看到的就是你那份
+ *   他自己改了再刷新       → 不重种，他的改动留着
+ *   你发了更新的版本       → 重种，以你的新版为准（他本地的改动会被盖掉）
+ * 最后那条是有意的：分享出去的是一份有基准的东西，不是各自为政。
+ */
+function seedStoreFromEmbedded() {
+  const emb = (typeof window !== 'undefined') && window.__ASSET_EMBEDDED_STORE;
+  if (!emb || !emb.items) return 0;
+  try {
+    const done = localStorage.getItem(SHARE_SEEDED_MARK) || '';
+    const stamp = String(emb.savedAt || '');
+    if (done && !(stamp > done)) return 0;
+    let n = 0;
+    SHARE_STORE_KEYS.forEach(function (k) {
+      if (!Object.prototype.hasOwnProperty.call(emb.items, k)) return;
+      const v = emb.items[k];
+      if (v == null) return;
+      localStorage.setItem(k, String(v));
+      n++;
+    });
+    localStorage.setItem(SHARE_SEEDED_MARK, stamp);
+    return n;
+  } catch (error) { return 0; }
+}
+seedStoreFromEmbedded();
 const COLLAPSE_KEY='ckfm-journey-collapsed-stages';
 /* ===================== 协作模式（分享权限）=====================
    ⚠ 这是「协作约定 + UI 门禁」，不是安全边界。
@@ -7266,7 +7343,63 @@ function exitBlueprintEditSaving() {
 function buildEditToolbar(current){let back=branchStack.length?'<button class="returnBranch" onclick="goBackBranch()">← 返回上一个流程</button>':'';let pts=linkPoints(current);let opt=pts.map(x=>`<option value="${x.id}">${x.label}</option>`).join('');return `<div class="editBar"><button onclick="toggleBlueprintEdit()">${blueprintEditing?'完成编辑':'编辑文字和连线'}</button>${back}<button onclick="downloadEditedHTML()">下载保存的 HTML</button>${blueprintEditing?'<button onclick="resetCurrentScenarioEdits()">重置本场景为文件默认</button>':''}<span class="saveFeedback">编辑自动保存在当前浏览器</span><span class="notice">${blueprintEditing?'直接修改节点文字（角色行为／前端／后台三排都可改）；每块下方可「＋ 备注」，清空即删除。改动即时保存在本机浏览器，刷新后仍在；要带走就点「下载保存的 HTML」。':'点击节点查看详情；点击分支场景进入子流程。'}</span>${blueprintEditing?`<select id="linkFrom">${opt}</select><span>→</span><select id="linkTo">${opt}</select><select id="linkKind"><option value="behavior">行为实线</option><option value="interaction">交互虚线</option></select><button onclick="addCustomLink()">添加连线</button><select id="linkRemove">${currentLinks().map((x,i)=>`<option value="${i}">${pts.find(p=>p.id===x.from)?.label||x.from} → ${pts.find(p=>p.id===x.to)?.label||x.to}</option>`).join('')}</select><button onclick="removeCustomLink()">删除所选连线</button><button onclick="exportBlueprintChanges()">导出编辑数据</button>`:''}</div>`}
 function addCustomLink(){let a=document.getElementById('linkFrom').value,b=document.getElementById('linkTo').value;if(a===b){alert('请选择不同的起点和终点');return}let links=currentLinks().map(x=>({...x}));links.push({from:a,to:b,type:document.getElementById('linkKind').value});linkEdits[activeScenario]=links;persistBlueprint();renderSingleScenario(activeScenario)}
 function removeCustomLink(){let links=currentLinks().map(x=>({...x})),i=Number(document.getElementById('linkRemove').value);if(Number.isInteger(i))links.splice(i,1);linkEdits[activeScenario]=links;persistBlueprint();renderSingleScenario(activeScenario)}
-function downloadEditedHTML(){if(document.activeElement?.isContentEditable)document.activeElement.blur();persistBlueprint();const data={savedAt:new Date().toISOString(),scenarios:singleScenarios,details:detailedBlueprint,decisions:blueprintDecisions,links:linkEdits,text:allBlueprintText};const clone=document.documentElement.cloneNode(true);clone.querySelector('#embeddedAssetData')?.remove();const el=clone.ownerDocument.createElement('script');el.id='embeddedAssetData';el.textContent='window.__ASSET_EMBEDDED_DATA='+JSON.stringify(data).replace(/</g,'\\u003c')+';';clone.querySelector('head').appendChild(el);const a=document.createElement('a');a.href=URL.createObjectURL(new Blob(['<!DOCTYPE html>\n'+clone.outerHTML],{type:'text/html'}));a.download='云管家服务蓝图_已保存.html';a.click();setTimeout(()=>URL.revokeObjectURL(a.href),1000)}
+/* 导出一份「打开就是现在这个样子」的 HTML。
+ *
+ * 两份数据一起内嵌，缺一不可：
+ *   __ASSET_EMBEDDED_DATA   结构（场景、步骤、判断、连线、文字），走 loadBlueprint
+ *   __ASSET_EMBEDDED_STORE  其余 11 个存档位的原文，走 seedStoreFromEmbedded
+ * 原来只有前者，所以画布、评论、文字修改、状态标签、隐藏行、系统标签全丢在本机。
+ */
+function collectShareStore(){
+  const items={};
+  const missing=[];
+  SHARE_STORE_KEYS.forEach(k=>{
+    let v=null;
+    try{v=localStorage.getItem(k)}catch(error){v=null}
+    if(v==null){missing.push(k);return}
+    items[k]=v;
+  });
+  return {items,missing};
+}
+function downloadEditedHTML(){
+  /* 把八处存储统一落一次盘。
+     不自己写 blur + persistBlueprint 了 —— commitBlueprintEdits 的 blur 判定更全：
+     备注、追加卡、标签是靠 data-note／data-card／data-chip 认的，
+     光看 isContentEditable 会漏，刚打的那段就进不了存档。 */
+  try{if(typeof commitBlueprintEdits==='function')commitBlueprintEdits();
+      else persistBlueprint()}catch(error){try{persistBlueprint()}catch(e2){}}
+  /* 画布是改一下存一下的，但显式再存一次，保证评论和变更记录是最新的 */
+  try{if(typeof saveCanvasLocal==='function')saveCanvasLocal()}catch(error){}
+  const savedAt=new Date().toISOString();
+  const data={savedAt,scenarios:singleScenarios,details:detailedBlueprint,
+    decisions:blueprintDecisions,links:linkEdits,text:allBlueprintText};
+  const store=collectShareStore();
+  const clone=document.documentElement.cloneNode(true);
+  clone.querySelector('#embeddedAssetData')?.remove();
+  clone.querySelector('#embeddedAssetStore')?.remove();
+  const esc1=s=>s.replace(/</g,'\u003c');
+  const el=clone.ownerDocument.createElement('script');
+  el.id='embeddedAssetData';
+  el.textContent='window.__ASSET_EMBEDDED_DATA='+esc1(JSON.stringify(data))+';';
+  const el2=clone.ownerDocument.createElement('script');
+  el2.id='embeddedAssetStore';
+  el2.textContent='window.__ASSET_EMBEDDED_STORE='
+    +esc1(JSON.stringify({savedAt,items:store.items}))+';';
+  const head=clone.querySelector('head');
+  head.appendChild(el);
+  head.appendChild(el2);
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(new Blob(['<!DOCTYPE html>\n'+clone.outerHTML],
+    {type:'text/html'}));
+  a.download='云管家服务蓝图_已保存.html';a.click();
+  setTimeout(()=>URL.revokeObjectURL(a.href),1000);
+  /* 带走了几项、哪几项是空的，当场说清楚，别让人以为全带上了 */
+  const got=Object.keys(store.items).length;
+  if(typeof showToast==='function')
+    showToast(`已导出：结构 + ${got}/${SHARE_STORE_KEYS.length} 项存档`
+      +(store.missing.length?`（${store.missing.length} 项本来是空的）`:''));
+  return {savedAt,got,missing:store.missing};
+}
 function exportBlueprintChanges(){let data=JSON.stringify({scenarios:singleScenarios,details:detailedBlueprint,decisions:blueprintDecisions,links:linkEdits,text:allBlueprintText},null,2),a=document.createElement('a');a.href=URL.createObjectURL(new Blob([data],{type:'application/json'}));a.download='云管家蓝图编辑数据.json';a.click();setTimeout(()=>URL.revokeObjectURL(a.href),1000)}
 document.addEventListener('click',e=>{if(blueprintEditing&&e.target.closest('[contenteditable="true"]'))e.stopImmediatePropagation()},true);
 document.addEventListener('focusout',e=>{const key=e.target.dataset?.edit;if(!key)return;/* kind:下标[:目标场景id] —— 第三段是子场景入口用来区分同一步上多个入口的 */const seg=key.split(':'),kind=seg[0],i=Number(seg[1]),extra=seg[2];/* 读富文本：保留换行与加粗，其余标签剥掉 */const v=bpRichRead(e.target);if(bpRichEmpty(v))return;/* 统一走 setBlueprintField：写数据 + 登记为用户编辑 + 落盘，刷新后不会被文件补丁盖掉 */setBlueprintField(activeScenario,kind,i,v,extra)});
