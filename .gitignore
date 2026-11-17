@@ -1,0 +1,7 @@
+# 这个目录只该有 index.html 一个文件。
+# 任何别的东西都是误放进来的，不要跟着发到线上。
+*
+!index.html
+!.gitignore
+!.nojekyll
+!README-部署说明.md
