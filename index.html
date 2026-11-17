@@ -7313,7 +7313,10 @@ function loadBlueprint(){try{
   allBlueprintText=d.text||{}
 }catch(e){}}
 function linkPoints(current){let cols=scenarioColumns(current),out=[];cols.forEach((c,i)=>{out.push({id:'a'+i,label:(i+1)+' 角色：'+c.step[1]});out.push({id:'f'+i,label:(i+1)+' 前端：'+c.step[3]});if(c.decision){out.push({id:'d'+i,label:(i+1)+' 判断：'+c.decision.title});out.push({id:'b'+i,label:(i+1)+' 分支：'+c.decision.no})}});return out}
-function defaultLinks(current){let cols=scenarioColumns(current),arr=[];cols.forEach((c,i)=>{let next=cols[i+1];if(c.decision){arr.push({from:'a'+i,to:'d'+i,type:'behavior'});arr.push({from:'d'+i,to:'b'+i,type:'behavior'});if(next)arr.push({from:'d'+i,to:'a'+(i+1),type:'behavior'})}else if(next)arr.push({from:'a'+i,to:'a'+(i+1),type:'behavior'});let mode=integrationSteps[current[0]]?.[i];if(mode==='submit'||mode==='both')arr.push({from:'a'+i,to:'f'+i,type:'interaction'});if(mode==='feedback'||mode==='both')arr.push({from:'f'+i,to:'a'+i,type:'interaction'})});return arr}
+/* 自动交互虚线的开关。关掉后泳道图只剩行为实线，画面干净；
+ * integrationSteps 的数据原样保留，改回 true 就恢复。 */
+const SHOW_DEFAULT_INTERACTION_LINKS=false;
+function defaultLinks(current){let cols=scenarioColumns(current),arr=[];cols.forEach((c,i)=>{let next=cols[i+1];if(c.decision){arr.push({from:'a'+i,to:'d'+i,type:'behavior'});arr.push({from:'d'+i,to:'b'+i,type:'behavior'});if(next)arr.push({from:'d'+i,to:'a'+(i+1),type:'behavior'})}else if(next)arr.push({from:'a'+i,to:'a'+(i+1),type:'behavior'});if(SHOW_DEFAULT_INTERACTION_LINKS){let mode=integrationSteps[current[0]]?.[i];if(mode==='submit'||mode==='both')arr.push({from:'a'+i,to:'f'+i,type:'interaction'});if(mode==='feedback'||mode==='both')arr.push({from:'f'+i,to:'a'+i,type:'interaction'})}});return arr}
 function currentLinks(){return linkEdits[activeScenario]||defaultLinks(singleScenarios.find(x=>x[0]===activeScenario))}
 function toggleBlueprintEdit(){blueprintEditing=!blueprintEditing;renderSingleScenario(activeScenario)}
 /* 把编辑中的内容全部交掉。
