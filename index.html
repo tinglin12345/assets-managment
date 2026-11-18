@@ -12133,6 +12133,15 @@ function blankSystemTouchpoints() {
     document.body.appendChild(layer);
     document.addEventListener('keydown', zoomKey, true);
   };
+  /* 阶段黄底说明横幅（.stageNote）—— 按要求关掉。
+   *
+   * 只关渲染，不删 stageList 里的 note 数据：那 4 段文字是「这个阶段为什么存在」的
+   * 来历记录（配置／任务／前置／初始化四个阶段都不在业务流程图里），删了不可逆。
+   * 想恢复就把这个开关改回 true，CSS 规则也一直留着。
+   *
+   * 注意这里只影响没有原图的那 4 个阶段。带原图的 7 个流程走上面 stage.chart 那一支，
+   * 显示的是可折叠的「业务流程图原图」，不受影响。 */
+  const SHOW_STAGE_NOTES = false;
   function attachChart(stage, id) {
     const host = document.getElementById('flowContent');
     if (!host) return;
@@ -12153,7 +12162,7 @@ function blankSystemTouchpoints() {
         '</div>';
       box.addEventListener('toggle', function () { chartOpen = box.open; });
       frag.appendChild(box);
-    } else if (stage.note) {
+    } else if (SHOW_STAGE_NOTES && stage.note) {
       const note = document.createElement('div');
       note.className = 'stageNote'; note.textContent = stage.note;
       frag.appendChild(note);
