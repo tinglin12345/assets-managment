@@ -750,6 +750,35 @@ svg.flowlayer path.flowline.pathActive{stroke:#2459f4!important;stroke-width:3!i
 .stSwitch:hover{background:#d6e8fb;border-color:#2f7fd4}
 .rvHead .stSwitch+.rvClose{margin-left:8px}
 .stSec{margin:16px 0 8px;font-size:12px;color:#30435b;font-weight:700}
+.olWrap{overflow:auto;border:1px solid #dae3ef;border-radius:8px;background:#fff}
+.olGrid{display:grid;min-width:1180px}
+.olHd{position:sticky;top:0;z-index:2;background:#f4f7fc;border-bottom:1px solid #dae3ef;
+ padding:8px 10px;font-size:11px;font-weight:700;color:#30435b;text-align:center}
+.olHd.olHdL{text-align:left}
+.olLn{padding:10px;border-bottom:1px solid #eef2f8;border-right:1px solid #eef2f8;
+ background:#fbfcfe;font-size:12px;font-weight:700;color:#1f2d3d}
+.olLn small{display:block;margin-top:3px;font-weight:400;font-size:10px;color:#8091a8;line-height:1.5}
+.olKind{padding:10px;border-bottom:1px solid #eef2f8;border-right:1px solid #eef2f8;
+ font-size:11px;color:#b08a3c;background:#fffdf7}
+.olKind i{font-style:normal;color:#c0392b}
+.olCl{padding:7px 6px;border-bottom:1px solid #eef2f8;border-right:1px solid #f4f7fc;min-height:44px}
+.olCl:last-child{border-right:0}
+.olT{display:block;width:100%;margin:0 0 5px;padding:6px 7px;border:1px solid #cddaee;
+ border-radius:6px;background:#f6f9ff;text-align:left;cursor:pointer;font:inherit;line-height:1.45}
+.olT:last-child{margin-bottom:0}
+.olT:hover{background:#eaf1ff;border-color:#2459ee}
+.olT b{display:block;font-size:11px;color:#1f2d3d;font-weight:600}
+.olT i{font-style:normal;font-size:10px;color:#2459ee;font-family:ui-monospace,Menlo,monospace}
+.olT em{font-style:normal;display:inline-block;margin-left:5px;font-size:9px;color:#5a6b80}
+.olT.olBoth{background:#fff6ea;border-color:#e0b070}
+.olT.olBoth:hover{background:#ffeed8;border-color:#d49b32}
+.olT .olFlag{display:block;margin-top:3px;font-size:9px;color:#9a6b12}
+.olNote{margin:12px 0 0;padding:10px 12px;border-left:3px solid #2459ee;background:#f2f6ff;
+ border-radius:6px;font-size:11px;color:#2d4263;line-height:1.7}
+.olNote b{color:#1f2d3d}
+.olBtn{margin-top:8px;padding:5px 11px;border:1px solid #cddaee;border-radius:6px;
+ background:#fff;color:#2459ee;font-size:11px;font-weight:600;cursor:pointer}
+.olBtn:hover{background:#eaf1ff;border-color:#2459ee}
 .stSec.stSecGap{color:#9b3a2d;border-top:1px dashed #e8b5ad;padding-top:14px}
 .stRow{display:flex;gap:12px;align-items:flex-start;padding:8px 0;
   border-bottom:1px solid #eef2f7}
@@ -847,7 +876,8 @@ svg.flowlayer path.flowline.pathActive{stroke:#2459f4!important;stroke-width:3!i
   <div><div class="title">云管家固定资产 · 交互式建档蓝图</div><div class="subtitle">历史资产初始化与供应商发运建档｜点击节点查看场景、角色和待确认问题</div></div>
   <!-- 中间那行统计由 renderHeaderMeta() 从真实数据算出来填进去，不要写死，
        否则增删阶段 / 角色 / 触点之后这里就会对不上。 -->
-  <div class="headerMeta">图号 <b class="mono">BP-ASSET-01</b><br><span id="headerStats"></span><br>视角：Human Action × System Touchpoint × Feedback × Next Action</div>
+  <div class="headerMeta">图号 <b class="mono">BP-ASSET-01</b><br><span id="headerStats"></span><br>视角：Human Action × System Touchpoint × Feedback × Next Action
+    <br><button type="button" class="olBtn" onclick="openOrderLaneView()" title="按单子类型看全流程的工单动作">查看工单泳道图</button></div>
 </header>
 <section class="phasebar" style="display:none"><div class="phase"><b>01 · 历史资产初始化</b><span>范围 → 整理 → 导入 → 核实</span></div><div class="phase"><b>02 · 新增发运建档</b><span>PO → 发货 → 清单 → 导入</span></div><div class="phase"><b>03 · 异常与处理</b><span>取消 / 分批 / 重复 / 更正</span></div><div class="phase"><b>04 · 到货交接</b><span>扫码 → 比对 → 进入验收</span></div></section>
 <section class="oneflow" id="oneflow"><h2>按场景查看端到端流程</h2><p class="intro">选择一个场景，一次只展示该场景的完整路径。点击任意步骤查看该步骤的说明与待确认事项。</p><div class="flowTabs" id="flowTabs"></div><div class="journeyOverview" style="display:none"><div class="overviewTitle" id="overviewTitle"></div><div class="overviewScroll" id="overviewScroll"></div></div><p class="canvasCaption" style="display:none"><strong>下方服务蓝图：</strong>沿相同阶段查看角色、前端触点和后台处理；点击判断分支中的 S 节点查看对应子流程。</p><div id="flowContent"></div><p class="oneNote">标注“待确认”的角色、系统入口和处理规则为讨论建议；采购及下 PO 是上游已有流程。 </p></section><div class="scenarioNav" style="display:none!important"><div class="scenarioTitle">选择场景 <small>选择一个场景，再点击阶段查看该节点下的流程</small></div><div class="scenarioTabs"><button id="tabNew" onclick="switchAssetScenario('new')">场景 1　新增发货建档</button><button id="tabHistory" onclick="switchAssetScenario('history')">场景 2　历史资产首次导入</button></div><div id="scenarioSummary" class="scenarioSummary"></div><div class="pathControl"><span id="pathHint">点击节点，高亮相关前后流程；自动显示场景全部阶段。</span><button onclick="clearAssetPath()">清除高亮</button></div><div class="stageTabs" id="assetStageTabs"></div></div>
@@ -13841,6 +13871,137 @@ renderSingleScenario('main');
       if (ev.target === layer) closeStateTaskView(); });
     document.body.appendChild(layer);
     document.addEventListener('keydown', stBoardKey, true);
+  };
+
+  /* ========== 工单泳道图 ==========
+   *
+   * 回答的是「全流程里哪些地方生成工单、是什么工单、前端怎么体现」。
+   *
+   * 行＝单子类型（7 类，从 33 条触点归出来的），列＝工单动作生命周期
+   * （派发 接单 挂起 催办 卡单 结单 撤回，就是 TASK_KINDS 那七个）。
+   * 这样排的好处：一眼看出每类单子走到哪一步、哪些只是在已有单上操作。
+   *
+   * 数据来源全是现成的：触点清单 TASK_STEPS、在哪操作与动了什么 TASK_SYS、
+   * 前端怎么体现取 detailedBlueprint 的前台行。没有新造数据。
+   *
+   * 「工单类别」那一列刻意留空：CKFM 现有的保养／走修／专项够不够用、
+   * 安装注册要不要新开一类，这是业务口径，不替业务填。
+   */
+  const ORDER_LANES = [
+    ['到货验收单', ['s9', 's9p', 's9x', 's2a'],
+     '收货人／仓管的验收活。S2A 撤回的就是这张「待收货任务」，所以归在一起。'],
+    ['安装注册单', ['l1', 'l1m', 'l1r', 'l1x', 'r1'],
+     '现场装云管家。待确认：流程3 领料安装和流程4 注册上线是一张单还是两张 —— '
+     + 'L1「工单结单」和 R1「结束工单」现在各自结一次。'],
+    ['缺件补发单', ['l6'], '向供应商提补发，补发件回来还要重走建档与验收。'],
+    ['技术支援单', ['r2', 'm2'],
+     '待确认：R2 登记在 CKFM App，M2 登记在泛微 —— 同一个动作两套入口。'],
+    ['质返与报废单', ['r4', 'r6'], '备件主任／仓管侧的质量反馈与失效报废。'],
+    ['临期回收单', ['n1', 'n2', 'n3', 'n4', 'n5'],
+     '七种动作里占了六种，是生命周期最全的一条链。'],
+    ['回收入库单', ['o2'], '旧件入库有差异时打回现场，澄清后再回来。'],
+  ];
+  function buildOrderLanes() {
+    const kinds = (typeof TASK_KINDS !== 'undefined') ? TASK_KINDS : [];
+    const steps = (typeof TASK_STEPS !== 'undefined') ? TASK_STEPS : {};
+    const sys   = (typeof TASK_SYS !== 'undefined') ? TASK_SYS : {};
+    const lanes = [], placed = {};
+    let total = 0, both = 0;
+    ORDER_LANES.forEach(function (def) {
+      const cells = {};
+      kinds.forEach(function (k) { cells[k] = []; });
+      def[1].forEach(function (sid) {
+        (steps[sid] || []).forEach(function (pair) {
+          const title = pair[0], kind = pair[1];
+          const sc = singleScenarios.find(function (x) { return x[0] === sid; });
+          const i = sc ? (sc[4] || []).findIndex(function (s) { return s && s[1] === title; }) : -1;
+          const det = sc ? ((detailedBlueprint[sid] || [])[i] || null) : null;
+          const front = det && det[0] ? det[0] : null;
+          const meta = sys[sid + '|' + title] || null;
+          if (!cells[kind]) cells[kind] = [];
+          cells[kind].push({ sid: sid, i: i, title: title, kind: kind,
+            at: meta ? meta[0] : '', hits: meta ? meta[1] : '',
+            front: front ? front[0] : '', frontNote: front ? front[1] : '' });
+          placed[sid + '|' + title] = 1;
+          total++;
+          if (meta && meta[1] === '两边都动') both++;
+        });
+      });
+      lanes.push({ name: def[0], note: def[2], cells: cells });
+    });
+    /* 漏网的触点要自己冒出来，不能悄悄少掉 */
+    const missed = [];
+    Object.keys(steps).forEach(function (sid) {
+      (steps[sid] || []).forEach(function (p) {
+        if (!placed[sid + '|' + p[0]]) missed.push(sid + '｜' + p[0]);
+      });
+    });
+    return { lanes: lanes, kinds: kinds, total: total, both: both, missed: missed };
+  }
+  function olKey(e) { if (e.key === 'Escape') { e.preventDefault(); closeOrderLaneView(); } }
+  function closeOrderLaneView() {
+    const el = document.getElementById('orderLaneView');
+    if (el) el.remove();
+    document.removeEventListener('keydown', olKey, true);
+  }
+  window.closeOrderLaneView = closeOrderLaneView;
+  window.openOrderLaneView = function () {
+    closeOrderLaneView();
+    const d = buildOrderLanes(), e = stBoardEsc;
+    const cols = '220px 110px repeat(' + d.kinds.length + ', minmax(130px, 1fr))';
+    let g = '<div class="olHd olHdL">单子类型</div>'
+          + '<div class="olHd">工单类别</div>'
+          + d.kinds.map(function (k) { return '<div class="olHd">' + e(k) + '</div>'; }).join('');
+    d.lanes.forEach(function (ln) {
+      g += '<div class="olLn">' + e(ln.name)
+         + (ln.note ? '<small>' + e(ln.note) + '</small>' : '') + '</div>';
+      g += '<div class="olKind"><i>待确认</i></div>';
+      d.kinds.forEach(function (k) {
+        const list = ln.cells[k] || [];
+        g += '<div class="olCl">' + list.map(function (t) {
+          const jump = (typeof window.roleViewGo === 'function' && t.i >= 0)
+            ? ' onclick="closeOrderLaneView();roleViewGo(\'' + t.sid + '\',' + t.i + ')"'
+            : '';
+          return '<button type="button" class="olT' + (t.hits === '两边都动' ? ' olBoth' : '') + '"'
+            + jump + ' title="' + e(t.frontNote) + '">'
+            + '<i>' + e(String(t.sid).toUpperCase()) + '-'
+            + String(t.i + 1).padStart(2, '0') + '</i>'
+            + '<em>' + e(t.at) + '</em>'
+            + '<b>' + e(t.title) + '</b>'
+            + (t.front ? '<span class="olFlag">前端：' + e(t.front) + '</span>' : '')
+            + (t.hits === '两边都动' ? '<span class="olFlag">＋同时动资产状态</span>' : '')
+            + '</button>';
+        }).join('') + '</div>';
+      });
+    });
+    const layer = document.createElement('div');
+    layer.id = 'orderLaneView'; layer.className = 'roleView';
+    layer.innerHTML = '<div class="rvBox stBox">'
+      + '<div class="rvHead"><b class="rvDot taskTone"></b><strong>工单泳道图</strong>'
+      + '<span>' + d.total + ' 条任务触点归成 ' + d.lanes.length + ' 类单子；'
+      + d.both + ' 条同时动资产状态</span>'
+      + '<button type="button" class="rvClose" onclick="closeOrderLaneView()"'
+      + ' title="关闭（Esc）">\u00d7</button></div>'
+      + '<div class="rvRaw"><span>怎么读：</span>'
+      + '<code>行＝单子类型</code><code>列＝工单动作</code>'
+      + '<code>派发＝新建一张单</code><code>其余＝在已有单上操作</code>'
+      + '<code>橙色＝同时动资产状态</code><code>点格子跳到那一步</code></div>'
+      + '<div class="rvBody">'
+      + '<div class="olWrap"><div class="olGrid" style="grid-template-columns:' + cols + '">'
+      + g + '</div></div>'
+      + '<div class="olNote"><b>「工单类别」为什么整列留空：</b>'
+      + 'CKFM 现有的工单类别只记了保养、走修、专项三种（全文仅出现一次，在系统口径注释里），'
+      + '而这 7 类单子没有一类能确定归到那三种里。这是业务口径，没定之前不填。'
+      + '要定它得先回答两件事：一、CKFM 实际有哪几类工单，THD 技术支援是单独一类还是归走修；'
+      + '二、安装注册是新开一类还是放进专项（这个问题你在 L1 第 1 步的备注里问过）。</div>'
+      + (d.missed.length
+          ? '<div class="olNote"><b>没归进任何泳道的触点：</b>' + e(d.missed.join('；')) + '</div>'
+          : '')
+      + '</div></div>';
+    layer.addEventListener('click', function (ev) {
+      if (ev.target === layer) closeOrderLaneView(); });
+    document.body.appendChild(layer);
+    document.addEventListener('keydown', olKey, true);
   };
   /* ========== 7. 资产状态流转（业务给定） ========== */
   function touchedStatuses(current) {
