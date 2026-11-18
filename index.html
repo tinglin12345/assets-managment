@@ -12142,6 +12142,14 @@ function blankSystemTouchpoints() {
    * 注意这里只影响没有原图的那 4 个阶段。带原图的 7 个流程走上面 stage.chart 那一支，
    * 显示的是可折叠的「业务流程图原图」，不受影响。 */
   const SHOW_STAGE_NOTES = false;
+  /* 原图折叠块里那条黄色说明（.bizChartMap.suggest）—— 和上面阶段黄条一起关掉。
+   *
+   * 命中条件是「这个场景原图里没有」（MAPPING 没登记）或 id==='l5'（强制标注）。
+   * 现在命中的有 s9p／s9x／l1m／l1r／l1x／l5／o3 这些拆解时补出来的场景。
+   *
+   * 同样只关渲染：MAPPING 表、NOT_IN_CHART 文案、CSS 规则都留着，
+   * 改回 true 就恢复。蓝色那条（场景确实在原图里、写它对应哪一段）不受影响。 */
+  const SHOW_CHART_SUGGEST_NOTES = false;
   function attachChart(stage, id) {
     const host = document.getElementById('flowContent');
     if (!host) return;
@@ -12155,9 +12163,14 @@ function blankSystemTouchpoints() {
       box.innerHTML =
         '<summary>业务流程图原图 · ' + esc(stage.chart.title) + ' <small>' + SOURCE + '，第' + stage.chart.page + '页</small></summary>' +
         '<div class="bizChartBody">' +
-        '<div class="bizChartMap' + (map === NOT_IN_CHART || id === 'l5' ? ' suggest' : '') + '">' + esc(map) + '</div>' +
+        (function () {
+          /* 黄块＝原图里没有这个场景；蓝块＝在原图里，写它对应哪一段 */
+          const isSuggest = (map === NOT_IN_CHART || id === 'l5');
+          if (isSuggest && !SHOW_CHART_SUGGEST_NOTES) return '';
+          return '<div class="bizChartMap' + (isSuggest ? ' suggest' : '') + '">' + esc(map) + '</div>';
+        })() +
         '<div class="bizChartImgWrap"><img class="bizChartImg" alt="业务流程图：' + esc(stage.chart.title) + '" src="' + IMG[stage.chart.key] + '" onclick="openBizChartZoom(\'' + stage.chart.key + '\')"></div>' +
-        (stage.gap ? '<div class="bizChartMap suggest" style="margin-top:12px">' + esc(stage.gap) + '</div>' : '') +
+        (stage.gap && SHOW_CHART_SUGGEST_NOTES ? '<div class="bizChartMap suggest" style="margin-top:12px">' + esc(stage.gap) + '</div>' : '') +
         '<div class="bizChartHint">点击图片放大，按 Esc 或点击空白处关闭。图中绿色方块是物料状态变化，蓝色方块是动作。</div>' +
         '</div>';
       box.addEventListener('toggle', function () { chartOpen = box.open; });
