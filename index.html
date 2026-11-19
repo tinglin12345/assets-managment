@@ -804,6 +804,32 @@ svg.flowlayer path.flowline.pathActive{stroke:#2459f4!important;stroke-width:3!i
 .olBtn{margin-top:8px;padding:5px 11px;border:1px solid #cddaee;border-radius:6px;
  background:#fff;color:#2459ee;font-size:11px;font-weight:600;cursor:pointer}
 .olBtn:hover{background:#eaf1ff;border-color:#2459ee}
+.cdBtn{border-color:#c9b6e8;background:#f8f5fe;color:#4b3ea8}
+.cdBtn:hover{background:#efe9fc;border-color:#5b4bc4}
+.cdSec{margin:0 0 16px;padding:13px 15px;border:1px solid #dae3ef;border-radius:9px;background:#fff}
+.cdSec>h4{margin:0 0 4px;font-size:13.5px;color:#1f2d3d}
+.cdSec>p{margin:0 0 10px;font-size:11.5px;line-height:1.7;color:#5a6b80}
+.cdNum{display:flex;flex-wrap:wrap;gap:8px;margin:0 0 14px}
+.cdNum div{flex:1 1 128px;padding:9px 11px;border:1px solid #dae3ef;border-radius:8px;background:#f7faff}
+.cdNum b{display:block;font-size:19px;line-height:1.25;color:#1f2d3d}
+.cdNum span{font-size:10.5px;color:#5a6b80}
+.cdGrp{margin-bottom:9px}
+.cdGrp>em{display:block;margin-bottom:3px;font-style:normal;font-weight:600;font-size:11.5px;color:#2459ee}
+.cdGo{margin:0 5px 4px 0;padding:3px 8px;border:1px solid #dde6f2;border-radius:5px;
+  background:#fbfdff;font:inherit;font-size:11px;color:#24364d;cursor:pointer;text-align:left}
+.cdGo:hover{border-color:#2459ee;background:#eff5ff}
+.cdGo i{font-style:normal;font-weight:600;color:#2459ee;font-family:ui-monospace,Menlo,monospace}
+.cdGo.cdGoFlat{cursor:default}
+.cdGo.cdGoFlat:hover{border-color:#dde6f2;background:#fbfdff}
+.cdList{margin:0;padding:0;list-style:none}
+.cdList li{margin-bottom:7px;font-size:11.5px;line-height:1.7;color:#2b3a4d}
+.cdList li>b{color:#1f2d3d}
+.cdBlock{margin-bottom:9px;padding:9px 11px;border:1px solid #e8dcc0;border-radius:7px;background:#fffdf6}
+.cdBlock b{display:block;margin-bottom:2px;font-size:12px;color:#8a5a00}
+.cdBlock span{display:block;font-size:11px;line-height:1.7;color:#5a6b80}
+.cdBlock code{margin-right:5px;font-size:10.5px;color:#2459ee;font-family:ui-monospace,Menlo,monospace}
+.cdDone{border-color:#c6e0d4;background:#f6fcf9}
+.cdDone b{color:#167968}
 .stSec.stSecGap{color:#9b3a2d;border-top:1px dashed #e8b5ad;padding-top:14px}
 .stRow{display:flex;gap:12px;align-items:flex-start;padding:8px 0;
   border-bottom:1px solid #eef2f7}
@@ -903,7 +929,8 @@ svg.flowlayer path.flowline.pathActive{stroke:#2459f4!important;stroke-width:3!i
        否则增删阶段 / 角色 / 触点之后这里就会对不上。 -->
   <div class="headerMeta">图号 <b class="mono">BP-ASSET-01</b><br><span id="headerStats"></span><br>视角：Human Action × System Touchpoint × Feedback × Next Action
     <br><button type="button" class="olBtn" onclick="openOrderLaneView()" title="按单子类型看全流程的工单动作">查看工单泳道图</button>
-    <button type="button" class="olBtn" onclick="exportMergePack()" title="把这个浏览器里的修改导成可并进文件的包">导出并入包</button></div>
+    <button type="button" class="olBtn" onclick="exportMergePack()" title="把这个浏览器里的修改导成可并进文件的包">导出并入包</button>
+    <br><button type="button" class="olBtn cdBtn" onclick="openChangeDocView()" title="和原图相比新增、调整了什么；哪些地方还没定">查看变更说明</button></div>
 </header>
 <section class="phasebar" style="display:none"><div class="phase"><b>01 · 历史资产初始化</b><span>范围 → 整理 → 导入 → 核实</span></div><div class="phase"><b>02 · 新增发运建档</b><span>PO → 发货 → 清单 → 导入</span></div><div class="phase"><b>03 · 异常与处理</b><span>取消 / 分批 / 重复 / 更正</span></div><div class="phase"><b>04 · 到货交接</b><span>扫码 → 比对 → 进入验收</span></div></section>
 <section class="oneflow" id="oneflow"><h2>按场景查看端到端流程</h2><p class="intro">选择一个场景，一次只展示该场景的完整路径。点击任意步骤查看该步骤的说明与待确认事项。</p><div class="flowTabs" id="flowTabs"></div><div class="journeyOverview" style="display:none"><div class="overviewTitle" id="overviewTitle"></div><div class="overviewScroll" id="overviewScroll"></div></div><p class="canvasCaption" style="display:none"><strong>下方服务蓝图：</strong>沿相同阶段查看角色、前端触点和后台处理；点击判断分支中的 S 节点查看对应子流程。</p><div id="flowContent"></div><p class="oneNote">标注“待确认”的角色、系统入口和处理规则为讨论建议；采购及下 PO 是上游已有流程。 </p></section><div class="scenarioNav" style="display:none!important"><div class="scenarioTitle">选择场景 <small>选择一个场景，再点击阶段查看该节点下的流程</small></div><div class="scenarioTabs"><button id="tabNew" onclick="switchAssetScenario('new')">场景 1　新增发货建档</button><button id="tabHistory" onclick="switchAssetScenario('history')">场景 2　历史资产首次导入</button></div><div id="scenarioSummary" class="scenarioSummary"></div><div class="pathControl"><span id="pathHint">点击节点，高亮相关前后流程；自动显示场景全部阶段。</span><button onclick="clearAssetPath()">清除高亮</button></div><div class="stageTabs" id="assetStageTabs"></div></div>
@@ -12313,6 +12340,9 @@ function blankSystemTouchpoints() {
     l6: '图中没有这一条，是拆解时补的。缺件是东西没到、要供应商补发，和「损坏」（东西到了但坏了，走质保）是两回事，所以从 L5 里分出来。补发件到货后仍要走流程1 建档和流程2 验收才进可用库存。'
   };
   const NOT_IN_CHART = '图中没有画这一情形，是蓝图补充的场景。';
+  /* 变更说明面板要用这两张表，而它们在这个 IIFE 里。挂出去，别让面板重复定义一份。 */
+  window.BP_STAGES = STAGES;
+  window.BP_MAPPING = MAPPING;
 
   const lastByStage = {};   // 每个阶段上次看的场景，切回来时接着看
   let chartOpen = true;     // 图片面板展开状态在切换时保持
@@ -14206,6 +14236,239 @@ renderSingleScenario('main');
       if (ev.target === layer) closeStateTaskView(); });
     document.body.appendChild(layer);
     document.addEventListener('keydown', stBoardKey, true);
+  };
+
+  /* ========== 变更说明面板 ==========
+   *
+   * 右上角【查看变更说明】。回答两件事：和原图相比改了什么、哪里还没定。
+   *
+   * 数据和《流程变更说明.md》同源 —— 新增场景取 NEW_SCENARIOS、插入步骤取 NEW_STEPS、
+   * 口径差异取 MAPPING、待确认取步骤备注里「待确认」之后那段。所以两边不会对不上，
+   * 蓝图改了这里自动跟着变，不用手工维护第二份。
+   *
+   * 唯一例外是「最该先定的几件」：这是人工判断挑出来的，没法从数据算，
+   * 所以写成下面的 CD_BLOCKERS。md 生成器也读它，只维护这一处。
+   */
+  const CD_BLOCKERS = [
+    ['「待退回（已交仓管）」和「待退回（在仓库）」要不要合成一个',
+     '两个状态说的是同一件事：实物已到仓、员工责任已解除、还没寄出。质返那条叫前者、报废那条叫后者。不合并，资产状态清单里就有两个含义重复的状态。',
+     ['r4|1', 'r6|2']],
+    ['GSS 质量反馈到底有没有「驳回」这条路',
+     '业务说过「这里没有驳回流程，请删除」，但 R5 整个场景就是为驳回而存在的（驳回 → 内部强制报废审核中 → 泛微强制报废审批 → 已报废），「内部强制报废审核中」这个状态在文件里有 18 处引用。删不删、怎么删，要一句话。',
+     ['r4|3', 'r5|0']],
+    ['【强制核销】做完，资产的终态是什么',
+     '驳回的新口径写到「直至手动执行【强制核销】或【转内部报废】」就停了。转内部报废能接到「已报废」，强制核销接到哪个状态没写 —— 这条链在 CKFM 里目前没有闭环。',
+     ['r4|3']],
+    ['领料安装和注册上线是一张 CKFM 工单还是两张',
+     '现在 L1「工单结单」和 R1「注册成功，系统自动结束工单」各结一次。如果是一张单，就不该结两次；如果是两张，要说清第二张什么时候开。',
+     ['l1|7', 'r1|3']],
+    ['这 7 类单子在 CKFM 里算哪个工单类别',
+     'CKFM 现有的工单类别只记了保养、走修、专项三种，而工单泳道图里这 7 类单子没有一类能确定归进去。所以「工单类别」那一整列是留空的。',
+     []],
+    ['【报废确认】谁点',
+     '业务写的是「总部管理员（或仓管）」。系统里得定一个，否则按钮权限没法配。现在按总部管理员落的，仓管那条写在备注里。',
+     ['r6|4']],
+    ['泛微的 THD 支援结论怎么带进 CKFM',
+     '附件、单号，还是只回填一个结果字段？以及泛微结论和 CKFM 工单靠什么关联。不定，R2／M2 的「未解决」就只是一句话，系统里落不了地。',
+     ['r2|1', 'm2|2']],
+    ['有两个状态没人推动',
+     '「异常暂存（整箱待拆）」和「待复核（差异挂起）」这两个状态下没有任何任务触点 —— 没人被派去推动它，东西会停在那儿。要么补一条任务，要么说清靠什么兜。',
+     []],
+    ['有两条链没闭环',
+     '「客户反馈中（CAT）」处理完的终态没写（换新、退客户，还是报废）；「异常待核销」主管复核之后的去向也没写。',
+     ['r7|1', 'n3|1']],
+  ];
+  /* 命中这些词，就说明这条 MAPPING 讲的是「原图一种做法、新规格另一种做法」 */
+  const CD_DIFF = /改成|冲突|不一样|不一致|原图是|没有采用|按你的|业务已确认|业务把|已改|两者/;
+  /* 「已定」后面必须紧跟标点，否则会把 R6 通知文案里的「已定损待报废」误判成已定事项 */
+  function cdDoneOf(note) {
+    const s = String(note || '');
+    const m = s.match(/已定(?=[）)：:，。\s])/);
+    if (!m) return '';
+    const i = m.index, j = s.indexOf('待确认', i);
+    return (j > i ? s.slice(i, j) : s.slice(i)).replace(/^已定[）)]?\s*[：:]?\s*/, '').trim();
+  }
+  /* 只写了「待确认」「待确认。」的是备注留白的占位符，不是真问题，不进清单 */
+  function cdAskOf(note) {
+    const s = String(note || '');
+    const i = s.indexOf('待确认');
+    if (i < 0) return '';
+    const q = s.slice(i).replace(/^待确认[）)]?\s*[：:]?\s*/, '').trim()
+      .replace(/^[；;。，,]\s*/, '').trim();
+    return q.replace(/[。；;，,\s]/g, '').length < 4 ? '' : q;
+  }
+  function cdStageMap() {
+    const g = {};
+    (window.BP_STAGES || []).forEach(function (st) {
+      const label = (String(st.tag || '').indexOf('流程') === 0)
+        ? st.tag + ' ' + st.name : String(st.name || '');
+      (st.ids || []).forEach(function (id) { if (label) g[id] = label; });
+    });
+    /* BP_TAB_GROUPS 的分组名更贴近业务叫法，让它覆盖 */
+    (typeof BP_TAB_GROUPS !== 'undefined' ? BP_TAB_GROUPS : []).forEach(function (grp) {
+      (grp.ids || []).forEach(function (id) { g[id] = String(grp.name); });
+    });
+    return g;
+  }
+  function cdScOf(id) {
+    return singleScenarios.find(function (x) { return x[0] === id; }); }
+  function cdName(id) {
+    const s = cdScOf(id); return s ? String(s[2] || s[1] || id) : id; }
+  function cdNode(sid, i) {
+    return String(sid).toUpperCase() + '-' + String(i + 1).padStart(2, '0'); }
+  function closeChangeDocView() {
+    const el = document.getElementById('changeDocView');
+    if (el) el.remove();
+    document.removeEventListener('keydown', cdKey, true);
+  }
+  function cdKey(e) { if (e.key === 'Escape') { e.preventDefault(); closeChangeDocView(); } }
+  window.closeChangeDocView = closeChangeDocView;
+  window.openChangeDocView = function () {
+    closeChangeDocView();
+    const e = stBoardEsc;
+    const MAP = window.BP_MAPPING || {};
+    const ST = cdStageMap();
+    const NS = (typeof NEW_SCENARIOS !== 'undefined') ? NEW_SCENARIOS : {};
+    const NT = (typeof NEW_STEPS !== 'undefined') ? NEW_STEPS : {};
+    const total = singleScenarios.reduce(function (s, x) { return s + ((x[4] || []).length); }, 0);
+    const newSc = Object.keys(NS).filter(cdScOf);
+    let newStepN = 0;
+    Object.keys(NT).forEach(function (k) { newStepN += (NT[k] || []).length; });
+    const diffIds = Object.keys(MAP).filter(function (id) {
+      return cdScOf(id) && CD_DIFF.test(MAP[id]); });
+    /* 待确认与已定：逐步骤扫备注 */
+    const asks = [], dones = [];
+    singleScenarios.forEach(function (sc) {
+      (sc[4] || []).forEach(function (s, i) {
+        const q = cdAskOf(s[4]); if (q) asks.push([sc[0], i, String(s[1]), q]);
+        const d = cdDoneOf(s[4]); if (d) dones.push([sc[0], i, String(s[1]), d]);
+      });
+    });
+    /* 按阶段归并，阶段内保持场景原序 */
+    const byStage = function (list, keyOf) {
+      const g = {}, order = [];
+      list.forEach(function (x) {
+        const k = ST[keyOf(x)] || '其他';
+        if (!g[k]) { g[k] = []; order.push(k); }
+        g[k].push(x);
+      });
+      return { g: g, order: order };
+    };
+    const goBtn = function (sid, i, label) {
+      const ok = (typeof window.roleViewGo === 'function') && i >= 0;
+      return '<button type="button" class="cdGo' + (ok ? '' : ' cdGoFlat') + '"'
+        + (ok ? ' onclick="closeChangeDocView();roleViewGo(\'' + sid + '\',' + i + ')"' : '')
+        + '><i>' + e(cdNode(sid, i)) + '</i> ' + e(label) + '</button>';
+    };
+    let h = '';
+    /* ── 数字总览 ── */
+    h += '<div class="cdNum">'
+      + '<div><b>' + singleScenarios.length + '</b><span>个场景（原图 7 张流程图拆出来的）</span></div>'
+      + '<div><b>' + total + '</b><span>步，每步写了角色／前台／后台</span></div>'
+      + '<div><b>' + newSc.length + '</b><span>个场景原图没有，是新增的</span></div>'
+      + '<div><b>' + newStepN + '</b><span>条步骤插在原图场景中间</span></div>'
+      + '<div><b>' + diffIds.length + '</b><span>处和原图口径不一致</span></div>'
+      + '<div><b>' + asks.length + '</b><span>条待确认</span></div>'
+      + '</div>';
+    /* ── 最该先定的 ── */
+    h += '<div class="cdSec"><h4>一、最该先定的几件</h4>'
+      + '<p>下面这几件是从 ' + asks.length + ' 条待确认里<b>人工挑</b>出来的，'
+      + '标准是：不定就没法建数据模型，或者会让两个流程互相矛盾。其余的属于细节，可以边做边定。</p>';
+    CD_BLOCKERS.forEach(function (b, n) {
+      h += '<div class="cdBlock"><b>' + (n + 1) + '　' + e(b[0]) + '</b>'
+        + '<span>' + e(b[1]) + '</span>'
+        + (b[2].length ? '<div style="margin-top:5px">' + b[2].map(function (ref) {
+            const p = ref.split('|'), sid = p[0], i = +p[1];
+            const sc = cdScOf(sid);
+            const title = (sc && (sc[4] || [])[i]) ? String(sc[4][i][1]) : '（已不存在）';
+            return goBtn(sid, i, title);
+          }).join('') + '</div>' : '')
+        + '</div>';
+    });
+    h += '</div>';
+    /* ── 新增场景 ── */
+    {
+      const d = byStage(newSc, function (x) { return x; });
+      h += '<div class="cdSec"><h4>二、原图没有、新增的场景（' + newSc.length + ' 个）</h4>'
+        + '<p>原图 7 张图画的是主干。这些是主干之外的岔路和前置后置环节，原图没画，是拆解时补的。点一下跳到那个场景。</p>';
+      d.order.forEach(function (k) {
+        h += '<div class="cdGrp"><em>' + e(k) + '（' + d.g[k].length + ' 个）</em>'
+          + d.g[k].map(function (id) { return goBtn(id, 0, cdName(id)); }).join('')
+          + '</div>';
+      });
+      h += '</div>';
+    }
+    /* ── 插入的步骤 ── */
+    {
+      const list = [];
+      Object.keys(NT).forEach(function (id) {
+        const sc = cdScOf(id); if (!sc) return;
+        (NT[id] || []).forEach(function (title) {
+          const i = (sc[4] || []).findIndex(function (s) { return s && String(s[1]) === String(title); });
+          list.push([id, i, String(title)]);
+        });
+      });
+      const d = byStage(list, function (x) { return x[0]; });
+      h += '<div class="cdSec"><h4>三、原图场景里插进去的步骤（' + list.length + ' 条）</h4>'
+        + '<p>这些场景原图有，但中间少了几道。缺的多半是「实物到哪了、谁在管」这类交接动作 —— 不补就说不清东西在谁手里。</p>';
+      d.order.forEach(function (k) {
+        h += '<div class="cdGrp"><em>' + e(k) + '（' + d.g[k].length + ' 条）</em>'
+          + d.g[k].map(function (x) { return goBtn(x[0], x[1], x[2]); }).join('')
+          + '</div>';
+      });
+      h += '</div>';
+    }
+    /* ── 口径不一致 ── */
+    {
+      const d = byStage(diffIds, function (x) { return x; });
+      h += '<div class="cdSec"><h4>四、和原图口径不一致、按新规格改掉的（' + diffIds.length + ' 处）</h4>'
+        + '<p><b>这一节最该逐条过。</b>每条都是原图画了一种做法、新规格改成另一种做法 —— '
+        + '改对了是改进，改错了就是需求理解偏了，只有业务能判。</p><ul class="cdList">';
+      d.order.forEach(function (k) {
+        d.g[k].forEach(function (id) {
+          h += '<li>' + goBtn(id, 0, cdName(id)) + '<br>' + e(MAP[id]) + '</li>';
+        });
+      });
+      h += '</ul></div>';
+    }
+    /* ── 已定 ── */
+    if (dones.length) {
+      h += '<div class="cdSec"><h4>五、已经定下来的口径（' + dones.length + ' 条）</h4>'
+        + '<p>这些原来是待确认，业务给过明确答复，已经落进蓝图。</p>';
+      dones.forEach(function (x) {
+        h += '<div class="cdBlock cdDone"><b>' + e(cdNode(x[0], x[1])) + '　' + e(x[2]) + '</b>'
+          + '<span>' + e(x[3]) + '</span></div>';
+      });
+      h += '</div>';
+    }
+    /* ── 全部待确认 ── */
+    {
+      const d = byStage(asks, function (x) { return x[0]; });
+      h += '<div class="cdSec"><h4>六、全部待确认（' + asks.length + ' 条，按流程）</h4>'
+        + '<p>点节点号跳到那一步看上下文。只写了「待确认」没写内容的占位没有收进来。</p>';
+      d.order.forEach(function (k) {
+        h += '<div class="cdGrp"><em>' + e(k) + '（' + d.g[k].length + ' 条）</em><ul class="cdList">';
+        d.g[k].forEach(function (x) {
+          h += '<li>' + goBtn(x[0], x[1], x[2]) + '<br>' + e(x[3]) + '</li>';
+        });
+        h += '</ul></div>';
+      });
+      h += '</div>';
+    }
+    const layer = document.createElement('div');
+    layer.id = 'changeDocView'; layer.className = 'roleView';
+    layer.innerHTML = '<div class="rvBox stBox">'
+      + '<div class="rvHead"><b class="rvDot"></b><strong>变更说明</strong>'
+      + '<span>和原图相比改了什么；哪里还没定</span>'
+      + '<button type="button" class="rvClose" onclick="closeChangeDocView()"'
+      + ' title="关闭（Esc）">\u00d7</button></div>'
+      + '<div class="rvRaw"><span>对照物：</span>'
+      + '<code>《云管家固定资产设备运营管理_需求书配套流程图》8 页</code>'
+      + '<code>第 1 页＝资产状态清单</code><code>第 2–8 页＝流程 1–7</code>'
+      + '<code>这一页的内容和目录里那份《流程变更说明.md》同源</code></div>'
+      + '<div class="rvBody">' + h + '</div></div>';
+    document.body.appendChild(layer);
+    document.addEventListener('keydown', cdKey, true);
   };
 
   /* ========== 工单泳道图 ==========
