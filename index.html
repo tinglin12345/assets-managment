@@ -14762,6 +14762,10 @@ renderSingleScenario('main');
     return out.join('／');
   }
   /* 面板顶部的白话总览：直接回答「谁新建、谁要接、谁来结、系统会提醒哪些」 */
+  /* 顶部那块白话总览先关掉：格子里现在已经是白话（谁做／什么时候／用户看到／
+     这里新建工单），总览和下面的表格重复。函数和 CSS 都留着，改回 true 即恢复；
+     同一批信息也在目录里的《流程变更说明.md》和变更说明面板里。 */
+  const SHOW_ORDER_LANE_SUMMARY = false;
   function olPlainSummary(d) {
     const e = stBoardEsc;
     const all = [];
@@ -14873,7 +14877,7 @@ renderSingleScenario('main');
       /* 顶部那条「怎么读」说明已删 —— 格子里现在是白话（谁做／什么时候／
          用户看到／这里新建工单），不需要先读一遍图例。 */
       + '<div class="rvBody">'
-      + olPlainSummary(d)
+      + (SHOW_ORDER_LANE_SUMMARY ? olPlainSummary(d) : '')
       + '<div class="olWrap"><div class="olGrid" style="grid-template-columns:' + cols + '">'
       + g + '</div></div>'
       + '<div class="olNote"><b>「工单类别」为什么整列留空：</b>'
