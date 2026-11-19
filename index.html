@@ -12621,12 +12621,16 @@ function blankSystemTouchpoints() {
       if (!x) return '';
       const longSub = String(x[2] || '').length > 24;
       const title = g ? (lbl || x[2] || x[1]) : (longSub ? x[1] : (x[2] || x[1]));
-      const sub = g ? g.name
+      /* 成组的卡不写小字：虚线框头上已经有组名和成员数了（.fgName／.fgCount），
+         每张卡再写一遍组名是纯重复。没分组的卡保留小字 —— 它那行是去向标签，
+         不是组名，去掉就看不出这张卡指向哪。 */
+      const sub = g ? ''
         : (longSub ? x[2]
           : (typeof bpTargetLabel === 'function' ? bpTargetLabel(x[0]) : x[1]));
       return '<button class="' + (id === activeId ? 'active' : '') +
         '" onclick="renderSingleScenario(\'' + id + '\')">' +
-        esc(title) + newTagHtml(id) + '<br><small>' + esc(sub) + '</small></button>';
+        esc(title) + newTagHtml(id) +
+        (sub ? '<br><small>' + esc(sub) + '</small>' : '') + '</button>';
     };
     const out = [], seen = {};
     let count = 0;
