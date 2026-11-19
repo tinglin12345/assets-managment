@@ -930,7 +930,9 @@ svg.flowlayer path.flowline.pathActive{stroke:#2459f4!important;stroke-width:3!i
   <div class="headerMeta">图号 <b class="mono">BP-ASSET-01</b><br><span id="headerStats"></span><br>视角：Human Action × System Touchpoint × Feedback × Next Action
     <br><button type="button" class="olBtn" onclick="openOrderLaneView()" title="按单子类型看全流程的工单动作">查看工单泳道图</button>
     <button type="button" class="olBtn" onclick="exportMergePack()" title="把这个浏览器里的修改导成可并进文件的包">导出并入包</button>
-    <br><button type="button" class="olBtn cdBtn" onclick="openChangeDocView()" title="和原图相比新增、调整了什么；哪些地方还没定">查看变更说明</button></div>
+    <!-- 变更说明按钮先隐藏。面板和 openChangeDocView() 都留着，内容也还在
+         目录里的《流程变更说明.md》里；要放出来，把下面这个 hidden 去掉即可。 -->
+    <span id="cdBtnWrap" hidden><br><button type="button" class="olBtn cdBtn" onclick="openChangeDocView()" title="和原图相比新增、调整了什么；哪些地方还没定">查看变更说明</button></span></div>
 </header>
 <section class="phasebar" style="display:none"><div class="phase"><b>01 · 历史资产初始化</b><span>范围 → 整理 → 导入 → 核实</span></div><div class="phase"><b>02 · 新增发运建档</b><span>PO → 发货 → 清单 → 导入</span></div><div class="phase"><b>03 · 异常与处理</b><span>取消 / 分批 / 重复 / 更正</span></div><div class="phase"><b>04 · 到货交接</b><span>扫码 → 比对 → 进入验收</span></div></section>
 <section class="oneflow" id="oneflow"><h2>按场景查看端到端流程</h2><p class="intro">选择一个场景，一次只展示该场景的完整路径。点击任意步骤查看该步骤的说明与待确认事项。</p><div class="flowTabs" id="flowTabs"></div><div class="journeyOverview" style="display:none"><div class="overviewTitle" id="overviewTitle"></div><div class="overviewScroll" id="overviewScroll"></div></div><p class="canvasCaption" style="display:none"><strong>下方服务蓝图：</strong>沿相同阶段查看角色、前端触点和后台处理；点击判断分支中的 S 节点查看对应子流程。</p><div id="flowContent"></div><p class="oneNote">标注“待确认”的角色、系统入口和处理规则为讨论建议；采购及下 PO 是上游已有流程。 </p></section><div class="scenarioNav" style="display:none!important"><div class="scenarioTitle">选择场景 <small>选择一个场景，再点击阶段查看该节点下的流程</small></div><div class="scenarioTabs"><button id="tabNew" onclick="switchAssetScenario('new')">场景 1　新增发货建档</button><button id="tabHistory" onclick="switchAssetScenario('history')">场景 2　历史资产首次导入</button></div><div id="scenarioSummary" class="scenarioSummary"></div><div class="pathControl"><span id="pathHint">点击节点，高亮相关前后流程；自动显示场景全部阶段。</span><button onclick="clearAssetPath()">清除高亮</button></div><div class="stageTabs" id="assetStageTabs"></div></div>
@@ -5487,7 +5489,15 @@ const NEW_SCENARIOS = {
   s11: 1, s12: 1, s13: 1, s14: 1, s9p: 1, l1m: 1, l1r: 1, l1x: 1, l5: 1, r5: 1,
 };
 function isNewScenario(id){ return !!NEW_SCENARIOS[id]; }
-function newTagHtml(id){ return isNewScenario(id) ? '<em class="newTag">新增</em>' : ''; }
+/* 场景级「新增」徽章先关掉：56 个场景里 35 个带这个标，满屏都是等于没标。
+   要知道哪些是新增的，看目录里的《流程变更说明.md》第 1.1 节（或右上角那个面板）。
+   注意：这里只关场景级那个（阶段导航卡、场景 tab 条上的）；
+   泳道卡片上的步骤级徽章是 newStepTag／newTag.stepNew，不受影响。
+   改回 true 即恢复。 */
+const SHOW_NEW_SCENARIO_TAG = false;
+function newTagHtml(id){
+  return (SHOW_NEW_SCENARIO_TAG && isNewScenario(id)) ? '<em class="newTag">新增</em>' : '';
+}
 /* ───── 按步的「原图里没有这一步」表 ─────
  *
  * 只列「原图」那 17 个场景里我们插进去的步骤 —— 「新增」场景整个都不在原图里，
@@ -14856,13 +14866,8 @@ renderSingleScenario('main');
       + d.both + ' 条同时动资产状态</span>'
       + '<button type="button" class="rvClose" onclick="closeOrderLaneView()"'
       + ' title="关闭（Esc）">\u00d7</button></div>'
-      + '<div class="rvRaw"><span>怎么读：</span>'
-      + '<code>行＝单子类型</code><code>列＝工单动作</code>'
-      + '<code>徽章＝谁做</code><code>什么时候＝资产状态变的那一刻</code>'
-      + '<code>用户看到＝哪个页面、显示什么</code>'
-      + '<code>红色＝这一步新建工单</code><code>绿色＝在已有工单上操作</code>'
-      + '<code>砖红＝系统会主动推送提醒</code>'
-      + '<code>橙色＝同时动资产状态</code><code>点格子跳到那一步</code></div>'
+      /* 顶部那条「怎么读」说明已删 —— 格子里现在是白话（谁做／什么时候／
+         用户看到／这里新建工单），不需要先读一遍图例。 */
       + '<div class="rvBody">'
       + olPlainSummary(d)
       + '<div class="olWrap"><div class="olGrid" style="grid-template-columns:' + cols + '">'
