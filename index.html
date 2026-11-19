@@ -877,7 +877,8 @@ svg.flowlayer path.flowline.pathActive{stroke:#2459f4!important;stroke-width:3!i
   <!-- 中间那行统计由 renderHeaderMeta() 从真实数据算出来填进去，不要写死，
        否则增删阶段 / 角色 / 触点之后这里就会对不上。 -->
   <div class="headerMeta">图号 <b class="mono">BP-ASSET-01</b><br><span id="headerStats"></span><br>视角：Human Action × System Touchpoint × Feedback × Next Action
-    <br><button type="button" class="olBtn" onclick="openOrderLaneView()" title="按单子类型看全流程的工单动作">查看工单泳道图</button></div>
+    <br><button type="button" class="olBtn" onclick="openOrderLaneView()" title="按单子类型看全流程的工单动作">查看工单泳道图</button>
+    <button type="button" class="olBtn" onclick="exportMergePack()" title="把这个浏览器里的修改导成可并进文件的包">导出并入包</button></div>
 </header>
 <section class="phasebar" style="display:none"><div class="phase"><b>01 · 历史资产初始化</b><span>范围 → 整理 → 导入 → 核实</span></div><div class="phase"><b>02 · 新增发运建档</b><span>PO → 发货 → 清单 → 导入</span></div><div class="phase"><b>03 · 异常与处理</b><span>取消 / 分批 / 重复 / 更正</span></div><div class="phase"><b>04 · 到货交接</b><span>扫码 → 比对 → 进入验收</span></div></section>
 <section class="oneflow" id="oneflow"><h2>按场景查看端到端流程</h2><p class="intro">选择一个场景，一次只展示该场景的完整路径。点击任意步骤查看该步骤的说明与待确认事项。</p><div class="flowTabs" id="flowTabs"></div><div class="journeyOverview" style="display:none"><div class="overviewTitle" id="overviewTitle"></div><div class="overviewScroll" id="overviewScroll"></div></div><p class="canvasCaption" style="display:none"><strong>下方服务蓝图：</strong>沿相同阶段查看角色、前端触点和后台处理；点击判断分支中的 S 节点查看对应子流程。</p><div id="flowContent"></div><p class="oneNote">标注“待确认”的角色、系统入口和处理规则为讨论建议；采购及下 PO 是上游已有流程。 </p></section><div class="scenarioNav" style="display:none!important"><div class="scenarioTitle">选择场景 <small>选择一个场景，再点击阶段查看该节点下的流程</small></div><div class="scenarioTabs"><button id="tabNew" onclick="switchAssetScenario('new')">场景 1　新增发货建档</button><button id="tabHistory" onclick="switchAssetScenario('history')">场景 2　历史资产首次导入</button></div><div id="scenarioSummary" class="scenarioSummary"></div><div class="pathControl"><span id="pathHint">点击节点，高亮相关前后流程；自动显示场景全部阶段。</span><button onclick="clearAssetPath()">清除高亮</button></div><div class="stageTabs" id="assetStageTabs"></div></div>
@@ -7253,6 +7254,83 @@ function setBlueprintField(sid, kind, i, v, extra) {
   return true;
 }
 
+/* ───────── 导出并入包 ─────────
+ *
+ * 浏览器里的编辑存在 localStorage，换电脑、换浏览器、清缓存都会没，
+ * 别人打开分享链接也看不到。要让它们跟着文件走，得并进文件。
+ *
+ * 这个按钮把当前编辑导成和并入脚本同格式的包：
+ *   { items: [[路径, 值], ...], stale: [[路径, 锚点, 现角色], ...], fail: [路径, ...] }
+ * items 是能直接写进文件的；stale／fail 是写不进去的，原样列出不猜去向。
+ */
+/* 只读版的可写性判定：逐条镜像 writeBlueprintField 的守卫，但一个字节都不改。
+   不能拿 writeBlueprintField 去试 —— 它会真的改动页面数据。 */
+function canWriteBlueprintField(sid, kind, i, extra) {
+  const scene = singleScenarios.find(x => x[0] === sid);
+  const step = scene && Array.isArray(scene[4]) ? scene[4][i] : null;
+  const entry = detailedBlueprint[sid] ? detailedBlueprint[sid][i] : null;
+  const dec = () => (blueprintDecisions[sid] || []).find(x => x && x.after === i);
+  switch (kind) {
+    case 'roleTitle': case 'roleDetail': case 'roleNote': case 'system':
+      return !!step;
+    /* 前台和后台现在都会自动补建容器，所以只要 entry 在就能写 */
+    case 'frontTitle': case 'frontDetail': case 'frontNote':
+    case 'backTitle':  case 'backDetail':  case 'backNote':
+      return !!entry;
+    case 'decision': case 'decisionNote': case 'decisionYes': case 'decisionNo':
+    case 'decisionYesLabel': case 'decisionNoLabel':
+      return !!dec();
+    case 'decisionTarget':
+      return !!dec();
+    case 'branchText': case 'branchLabel': {
+      const list = (scenarioBranchIndex[sid] || {})[i];
+      return Array.isArray(list) && list.some(x => x && x[0] === extra);
+    }
+  }
+  return false;
+}
+function buildMergePack() {
+  const items = [], stale = [], fail = [];
+  Object.keys(blueprintUserEdits).forEach(function (path) {
+    const m = /^(.+):([A-Za-z]+):(\d+)(?::(.+))?$/.exec(path);
+    if (!m) { fail.push(path); return; }
+    const sid = m[1], kind = m[2], i = Number(m[3]), extra = m[4];
+    const rec = blueprintUserEdits[path];
+    const v = (rec && typeof rec === 'object') ? rec.v : rec;
+    const anchor = (rec && typeof rec === 'object') ? rec.r : null;
+    /* 锚点不符＝这一列的角色和当初编辑时不一样了，硬写会落到别的步骤上 */
+    if (anchor && blueprintRoleAt(sid, i) !== anchor) {
+      stale.push([path, anchor, blueprintRoleAt(sid, i)]); return;
+    }
+    if (!canWriteBlueprintField(sid, kind, i, extra)) { fail.push(path); return; }
+    items.push([path, v]);
+  });
+  return { savedAt: new Date().toISOString(), items: items, stale: stale, fail: fail };
+}
+window.exportMergePack = function () {
+  const pack = buildMergePack();
+  const n = Object.keys(blueprintUserEdits).length;
+  if (!n) {
+    if (typeof showToast === 'function') showToast('这个浏览器里还没有任何编辑，没东西可导。');
+    return;
+  }
+  try {
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(new Blob([JSON.stringify(pack, null, 1)],
+      { type: 'application/json' }));
+    a.download = '并入包_' + new Date().toISOString().slice(0, 10) + '.json';
+    a.click();
+    setTimeout(function () { URL.revokeObjectURL(a.href); }, 1000);
+  } catch (e) {
+    if (typeof showToast === 'function') showToast('导出失败：' + (e && e.message ? e.message : e));
+    return;
+  }
+  if (typeof showToast === 'function')
+    showToast('已导出并入包：' + pack.items.length + ' 条可并入'
+      + (pack.stale.length ? '，' + pack.stale.length + ' 条锚点失效' : '')
+      + (pack.fail.length ? '，' + pack.fail.length + ' 条路径不存在' : '')
+      + '（共 ' + n + ' 条）。把这个 json 给我就能并进文件。');
+};
 /* 所有文件补丁跑完后调用一次，保证用户编辑优先级最高 */
 function applyBlueprintUserEdits() {
   blueprintStaleEdits = 0;
