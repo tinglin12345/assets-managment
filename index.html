@@ -751,7 +751,7 @@ svg.flowlayer path.flowline.pathActive{stroke:#2459f4!important;stroke-width:3!i
 .rvHead .stSwitch+.rvClose{margin-left:8px}
 .stSec{margin:16px 0 8px;font-size:12px;color:#30435b;font-weight:700}
 .olWrap{overflow:auto;border:1px solid #dae3ef;border-radius:8px;background:#fff}
-.olGrid{display:grid;min-width:1180px}
+.olGrid{display:grid;min-width:1760px}
 .olHd{position:sticky;top:0;z-index:2;background:#f4f7fc;border-bottom:1px solid #dae3ef;
  padding:8px 10px;font-size:11px;font-weight:700;color:#30435b;text-align:center}
 .olHd.olHdL{text-align:left}
@@ -773,6 +773,16 @@ svg.flowlayer path.flowline.pathActive{stroke:#2459f4!important;stroke-width:3!i
 .olT.olBoth{background:#fff6ea;border-color:#e0b070}
 .olT.olBoth:hover{background:#ffeed8;border-color:#d49b32}
 .olT .olFlag{display:block;margin-top:3px;font-size:9px;color:#9a6b12}
+/* 角色徽章：直接吃 role-* 那套变量，和泳道图里同一个角色同色 */
+.olT .olWho{display:inline-block;margin-top:4px;padding:1px 5px;font-style:normal;
+  text-decoration:none;font-size:9px;line-height:1.6;border-radius:3px;
+  background:var(--rl,#eef2f8);color:var(--rd,#1f2d3d);border:1px solid var(--rb,#dae3ef)}
+.olT .olWhen{display:block;margin-top:4px;font-size:9px;line-height:1.55;color:#5a6b80}
+.olT .olFront{display:block;margin-top:4px;font-size:9px;line-height:1.55;color:#2459ee}
+.olT .olMake{display:block;margin-top:4px;font-size:9px;line-height:1.55;color:#167968}
+.olT .olMake.olMakeNew{color:#9b3a2d;font-weight:600}
+.olT .olFront small,.olT .olMake small{display:block;margin-top:1px;font-weight:400;
+  font-size:9px;line-height:1.55;color:#8091a8}
 .olNote{margin:12px 0 0;padding:10px 12px;border-left:3px solid #2459ee;background:#f2f6ff;
  border-radius:6px;font-size:11px;color:#2d4263;line-height:1.7}
 .olNote b{color:#1f2d3d}
@@ -7213,6 +7223,29 @@ function blueprintRoleAt(sid, i) {
 }
 
 /* 把值写进实际数据结构；返回 false 表示该路径在当前数据里不存在 */
+/* 步骤标题是好几张表的索引键 —— 任务触点 TASK_STEPS、触点系统 TASK_SYS、
+   新增标 NEW_STEPS、还有菱形「直行」那一侧的标签。标题一改，这些键就对不上，
+   表现是那一步的任务标和新增标静默消失（工单泳道图里就是这一格没有角色／何时／前端）。
+   所以改名时必须把键一起迁过去。并入文件的编辑和浏览器里的实时改名都走这里。 */
+function remapStepTitle(sid, oldTitle, newTitle) {
+  if (typeof TASK_STEPS !== 'undefined' && Array.isArray(TASK_STEPS[sid]))
+    TASK_STEPS[sid].forEach(function (p) { if (p && p[0] === oldTitle) p[0] = newTitle; });
+  if (typeof TASK_SYS !== 'undefined') {
+    const ok = sid + '|' + oldTitle, nk = sid + '|' + newTitle;
+    if (Object.prototype.hasOwnProperty.call(TASK_SYS, ok)) {
+      TASK_SYS[nk] = TASK_SYS[ok];
+      delete TASK_SYS[ok];
+    }
+  }
+  if (typeof NEW_STEPS !== 'undefined' && Array.isArray(NEW_STEPS[sid]))
+    NEW_STEPS[sid] = NEW_STEPS[sid].map(function (t) { return t === oldTitle ? newTitle : t; });
+  if (typeof blueprintDecisions !== 'undefined')
+    (blueprintDecisions[sid] || []).forEach(function (d) {
+      if (!d) return;
+      if (d.yes === oldTitle) d.yes = newTitle;
+      if (d.no === oldTitle) d.no = newTitle;
+    });
+}
 /* extra 是第四段：一个步骤可以挂多个子场景入口，用目标场景 id 区分是哪一个 */
 function writeBlueprintField(sid, kind, i, v, extra) {
   const scene = singleScenarios.find(x => x[0] === sid);
@@ -7220,7 +7253,13 @@ function writeBlueprintField(sid, kind, i, v, extra) {
   const entry = detailedBlueprint[sid] ? detailedBlueprint[sid][i] : null;
   const dec = () => (blueprintDecisions[sid] || []).find(x => x && x.after === i);
   switch (kind) {
-    case 'roleTitle':  if (!step) return false; step[1] = v; return true;
+    case 'roleTitle': {
+      if (!step) return false;
+      const oldTitle = String(step[1] == null ? '' : step[1]);
+      step[1] = v;
+      if (oldTitle && oldTitle !== v) remapStepTitle(sid, oldTitle, v);
+      return true;
+    }
     case 'roleDetail': if (!step) return false; step[2] = v; return true;
     case 'roleNote':   if (!step) return false; step[5] = v; return true;
     case 'system':     if (!step) return false; step[3] = v; return true;
@@ -14162,8 +14201,13 @@ renderSingleScenario('main');
    * （派发 接单 挂起 催办 卡单 结单 撤回，就是 TASK_KINDS 那七个）。
    * 这样排的好处：一眼看出每类单子走到哪一步、哪些只是在已有单上操作。
    *
+   * 每格写清四件事：谁做（角色，徽章配色和泳道图里同一个角色一致）、
+   * 什么时候（资产状态迁移的那一刻，流程里唯一客观的时点）、
+   * 前端在哪个页面显示什么提示、这一步是开新单还是在已有单上操作（含后台动作）。
+   *
    * 数据来源全是现成的：触点清单 TASK_STEPS、在哪操作与动了什么 TASK_SYS、
-   * 前端怎么体现取 detailedBlueprint 的前台行。没有新造数据。
+   * 角色取 singleScenarios 的步骤首项、何时取 SPEC 的状态迁移、
+   * 前端与后台取 detailedBlueprint 的前台／后台两行。没有新造数据。
    *
    * 「工单类别」那一列刻意留空：CKFM 现有的保养／走修／专项够不够用、
    * 安装注册要不要新开一类，这是业务口径，不替业务填。
@@ -14182,6 +14226,19 @@ renderSingleScenario('main');
      '七种动作里占了六种，是生命周期最全的一条链。'],
     ['回收入库单', ['o2'], '旧件入库有差异时打回现场，澄清后再回来。'],
   ];
+  /* 上游状态常写成「A ／ B ／ C」，整串塞进格子会把卡片撑爆，收一下 */
+  function olShortState(v) {
+    const s = String(v == null ? '' : v);
+    if (s.indexOf('／') < 0) return s;
+    const parts = s.split('／');
+    return parts[0].trim() + ' 等 ' + parts.length + ' 个上游状态';
+  }
+  /* 「什么时候」取资产状态迁移的那一刻 —— 这是流程里唯一客观的时点 */
+  function olWhen(st) {
+    if (!st) return '';
+    if (st.keep) return '资产状态保持「' + olShortState(st.from) + '」期间';
+    return '资产状态「' + olShortState(st.from) + '」→「' + olShortState(st.to) + '」这一刻';
+  }
   function buildOrderLanes() {
     const kinds = (typeof TASK_KINDS !== 'undefined') ? TASK_KINDS : [];
     const steps = (typeof TASK_STEPS !== 'undefined') ? TASK_STEPS : {};
@@ -14198,11 +14255,18 @@ renderSingleScenario('main');
           const i = sc ? (sc[4] || []).findIndex(function (s) { return s && s[1] === title; }) : -1;
           const det = sc ? ((detailedBlueprint[sid] || [])[i] || null) : null;
           const front = det && det[0] ? det[0] : null;
+          const back = det && det[1] ? det[1] : null;
           const meta = sys[sid + '|' + title] || null;
+          const role = (sc && sc[4] && sc[4][i]) ? String(sc[4][i][0] || '') : '';
+          const sp = (typeof SPEC !== 'undefined' && SPEC[sid]) ? SPEC[sid][i] : null;
           if (!cells[kind]) cells[kind] = [];
           cells[kind].push({ sid: sid, i: i, title: title, kind: kind,
             at: meta ? meta[0] : '', hits: meta ? meta[1] : '',
-            front: front ? front[0] : '', frontNote: front ? front[1] : '' });
+            front: front ? front[0] : '', frontNote: front ? front[1] : '',
+            back: back ? back[0] : '', backNote: back ? back[1] : '',
+            role: role,
+            roleCls: (role && typeof roleClass === 'function') ? roleClass(role) : '',
+            when: olWhen(sp && sp.st ? sp.st : null) });
           placed[sid + '|' + title] = 1;
           total++;
           if (meta && meta[1] === '两边都动') both++;
@@ -14229,7 +14293,7 @@ renderSingleScenario('main');
   window.openOrderLaneView = function () {
     closeOrderLaneView();
     const d = buildOrderLanes(), e = stBoardEsc;
-    const cols = '220px 110px repeat(' + d.kinds.length + ', minmax(130px, 1fr))';
+    const cols = '220px 110px repeat(' + d.kinds.length + ', minmax(212px, 1fr))';
     let g = '<div class="olHd olHdL">单子类型</div>'
           + '<div class="olHd">工单类别</div>'
           + d.kinds.map(function (k) { return '<div class="olHd">' + e(k) + '</div>'; }).join('');
@@ -14243,13 +14307,22 @@ renderSingleScenario('main');
           const jump = (typeof window.roleViewGo === 'function' && t.i >= 0)
             ? ' onclick="closeOrderLaneView();roleViewGo(\'' + t.sid + '\',' + t.i + ')"'
             : '';
+          const isNew = t.kind === '派发';
           return '<button type="button" class="olT' + (t.hits === '两边都动' ? ' olBoth' : '') + '"'
-            + jump + ' title="' + e(t.frontNote) + '">'
+            + jump + ' title="' + e(t.frontNote || t.title) + '">'
             + '<i>' + e(String(t.sid).toUpperCase()) + '-'
             + String(t.i + 1).padStart(2, '0') + '</i>'
             + '<em>' + e(t.at) + '</em>'
+            + (t.role ? '<u class="olWho ' + e(t.roleCls) + '">' + e(t.role) + '</u>' : '')
             + '<b>' + e(t.title) + '</b>'
-            + (t.front ? '<span class="olFlag">前端：' + e(t.front) + '</span>' : '')
+            + (t.when ? '<span class="olWhen">何时 · ' + e(t.when) + '</span>' : '')
+            + (t.front ? '<span class="olFront">前端 · ' + e(t.front)
+                 + (t.frontNote ? '<small>' + e(t.frontNote) + '</small>' : '')
+                 + '</span>' : '')
+            + (t.back ? '<span class="olMake' + (isNew ? ' olMakeNew' : '') + '">'
+                 + (isNew ? '开单 · ' : '后台 · ') + e(t.back)
+                 + (t.backNote ? '<small>' + e(t.backNote) + '</small>' : '')
+                 + '</span>' : '')
             + (t.hits === '两边都动' ? '<span class="olFlag">＋同时动资产状态</span>' : '')
             + '</button>';
         }).join('') + '</div>';
@@ -14265,7 +14338,9 @@ renderSingleScenario('main');
       + ' title="关闭（Esc）">\u00d7</button></div>'
       + '<div class="rvRaw"><span>怎么读：</span>'
       + '<code>行＝单子类型</code><code>列＝工单动作</code>'
-      + '<code>派发＝新建一张单</code><code>其余＝在已有单上操作</code>'
+      + '<code>灰徽章＝谁做（同泳道图配色）</code><code>何时＝资产状态迁移的那一刻</code>'
+      + '<code>前端＝在哪个页面、用户看到什么</code>'
+      + '<code>红色「开单」＝这一步新建一张单</code><code>绿色「后台」＝在已有单上操作</code>'
       + '<code>橙色＝同时动资产状态</code><code>点格子跳到那一步</code></div>'
       + '<div class="rvBody">'
       + '<div class="olWrap"><div class="olGrid" style="grid-template-columns:' + cols + '">'
