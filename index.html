@@ -6779,7 +6779,7 @@ function buildSwimlane(current){
  const cols=scenarioColumns(current),details=detailedBlueprint[current[0]]||[];
  const bpHideCss=bpHideStyle(current[0]),bpBar=bpRestoreBar(current[0],cols);
  const bpNHidden=cols.filter(c=>bpColHidden(current[0],c.index)).length;
- let html=`<section class="swimSection">${bpHideCss}${bpTabStrip(current[0])}${bpStructBar(current[0])}${bpElBar(current[0])}${bpBar}<div class="swimHeading"><h3>服务蓝图 · ${current[1]} ${current[2]}</h3><p>从左向右阅读；菱形表示判断。连线表示角色行为和对应触点，未确认内容在卡片中标注。</p></div><div class="blueprintLegend"><span>主流程：灰蓝实线　｜　系统交互：暖灰虚线</span><b class="lh">角色行为</b><b class="ls">供应商</b><b class="lf">前端 / 业务触点</b><b class="ld">判断与场景分支</b></div>${buildEditToolbar(current)}<div class="swimScroll"><div class="swimGrid ${blueprintEditing?'editing':''}" style="--columns:${cols.length-bpNHidden}"><svg class="swimLines" aria-hidden="true"><defs><marker id="swimArrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto"><path d="M 0 0 L 10 5 L 0 10 z" fill="#657b8f"/></marker><marker id="swimArrowGray" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto"><path d="M 0 0 L 10 5 L 0 10 z" fill="#9a7b45"/></marker></defs></svg><div class="swimCorner">阶段 / 层级</div>${cols.map(c=>`<div class="swimColHead" data-col="${c.index}"><span class="stageText">${String(c.index+1).padStart(2,'0')}　${c.step[1]}</span>${bpColHideBtn(c.index)}${bpAddBtn(c.index)}${bpDeleteBtn(c.index)}</div>`).join('')}`;
+ let html=`<section class="swimSection" data-scene="${current[0]}">${bpHideCss}${bpTabStrip(current[0])}${bpStructBar(current[0])}${bpElBar(current[0])}${bpBar}<div class="swimHeading"><h3>服务蓝图 · ${current[1]} ${current[2]}</h3><p>从左向右阅读；菱形表示判断。连线表示角色行为和对应触点，未确认内容在卡片中标注。</p></div><div class="blueprintLegend"><span>主流程：灰蓝实线　｜　系统交互：暖灰虚线</span><b class="lh">角色行为</b><b class="ls">供应商</b><b class="lf">前端 / 业务触点</b><b class="ld">判断与场景分支</b></div>${buildEditToolbar(current)}<div class="swimScroll"><div class="swimGrid ${blueprintEditing?'editing':''}" style="--columns:${cols.length-bpNHidden}"><svg class="swimLines" aria-hidden="true"><defs><marker id="swimArrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto"><path d="M 0 0 L 10 5 L 0 10 z" fill="#657b8f"/></marker><marker id="swimArrowGray" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto"><path d="M 0 0 L 10 5 L 0 10 z" fill="#9a7b45"/></marker></defs></svg><div class="swimCorner">阶段 / 层级</div>${cols.map(c=>`<div class="swimColHead" data-col="${c.index}"><span class="stageText">${String(c.index+1).padStart(2,'0')}　${c.step[1]}</span>${bpColHideBtn(c.index)}${bpAddBtn(c.index)}${bpDeleteBtn(c.index)}</div>`).join('')}`;
  html+=`<div class="swimLane" data-row="role"><span class="laneText">角色行为</span>${bpRowHideBtn('role')}</div>${cols.map((c,i)=>`<div data-row="role" data-col="${c.index}" class="swimCell ${c.decision?'withDecision':''} ${branchLinksFor(current[0],c.index).length?'hasExtra':''}"><button class="swimNode ${roleClass(c.step[0])}" data-step="${c.index}" data-column="${i}" onclick="if(!blueprintEditing)showSingleStep(${c.index})"><span class="nodeRole ${roleClass(c.step[0])}" role="button" tabindex="0" title="查看「${roleType(c.step[0]).name}」这一类角色的全部步骤" onclick="event.stopPropagation();if(!blueprintEditing)openRoleView('${roleType(c.step[0]).k}')">${c.step[0]}</span>${newStepTag(current[0],c.step[1])}${taskTagHtml(current[0],c.step[1])}<strong data-edit="roleTitle:${c.index}" contenteditable="${blueprintEditing}">${c.step[1]}</strong><small data-edit="roleDetail:${c.index}" contenteditable="${blueprintEditing}">${c.step[2]}</small></button>${blockNoteMarkup('role',c.index)}${c.decision&&!bpElDeleted(current[0],c.step[1],'dec')?`<div class="decisionBox">${bpElDelBtn(c.index,'dec')}<div class="realDiamond" data-decision="${i}" data-edit="decision:${c.index}" contenteditable="${blueprintEditing}">${c.decision.title}</div><div class="branchSub" data-branch="${i}"><i class="decYN no" data-edit="decisionNoLabel:${c.index}" contenteditable="${blueprintEditing}">${c.decision.noLabel||'否'}</i>${blueprintEditing?`<span data-edit="decisionNo:${c.index}" contenteditable="true">${c.decision.no||''}</span>${bpDecTargetSelect(c.index,c.decision.target)}`:`<button onclick="openBranch('${c.decision.target}')">${c.decision.no} · ${bpTargetLabel(c.decision.target)} ↗</button>`}</div>${blockNoteMarkup('decision',c.index)}</div>`:''}${branchLinksFor(current[0],c.index).length?`<div class="extraBranchLinks">${branchLinksFor(current[0],c.index).filter(b=>!bpElDeleted(current[0],c.step[1],'branch',b[0])).map(b=>`<span class="bpBranchItem">${blueprintEditing?bpBranchEditable(b,c.index):`${bpBranchLabel(b)}<button onclick="openBranch('${b[0]}')" title="点击查看完整场景">${b[1]} ↗</button>`}${bpBranchMoveBtns(current[0],b[0],c.index)}${bpElDelBtn(c.index,'branch',b[0])}</span>`).join('')}</div>`:''}</div>`).join('')}`;
  html+=`<div class="bpLabel" data-row="front"><span class="laneText">前端 / 业务触点</span>${bpRowHideBtn('front')}<br><small>用户看到什么</small></div>${cols.map((c,i)=>{if(c.kind==='decision')return `<div class="bpCell" data-row="front" data-col="${c.index}"></div>`;if(bpElDeleted(current[0],c.step[1],'front'))return `<div class="bpCell bpCellGone" data-row="front" data-col="${c.index}">${bpElToggleBtn(c.index,'front')}${bpExtraCardsMarkup(current[0],'front',c.index)}</div>`;const d=details[c.index]?.[0]||[c.step[3]||'待填','具体界面待确认'];return `<div class="bpCell" data-row="front" data-col="${c.index}"><div class="bpCard front" data-front="${i}">${bpElDelBtn(c.index,'front')}${bpCardCopySelect('front',c.index,null)}<strong data-edit="frontTitle:${c.index}" contenteditable="${blueprintEditing}">${d[0]}</strong><p data-edit="frontDetail:${c.index}" contenteditable="${blueprintEditing}">${d[1]}</p>${current[0]==='main'&&c.step[0]==='总部管理员'&&c.step[1].includes('导入')?assetEntrySpec():''}${blockNoteMarkup('front',c.index)}</div>${bpExtraCardsMarkup(current[0],'front',c.index)}</div>`}).join('')}`;
  html+=`<div class="bpLabel back" data-row="back"><span class="laneText">后台 / 系统处理</span>${bpRowHideBtn('back')}<br><small>系统与后台做什么</small></div>${cols.map((c,i)=>{if(bpElDeleted(current[0],c.step[1],'back'))return `<div class="bpCell bpCellGone" data-row="back" data-col="${c.index}">${bpElToggleBtn(c.index,'back')}${bpExtraCardsMarkup(current[0],'back',c.index)}</div>`;const b=details[c.index]?.[1]||['后台处理｜待确认','具体规则、接口与责任人需业务和开发确认。'];return `<div class="bpCell" data-row="back" data-col="${c.index}"><div class="bpCard back" data-backstage="${i}">${bpElDelBtn(c.index,'back')}${bpCardCopySelect('back',c.index,null)}<strong data-edit="backTitle:${c.index}" contenteditable="${blueprintEditing}">${b[0]}</strong><p data-edit="backDetail:${c.index}" contenteditable="${blueprintEditing}">${b[1]}</p>${blockNoteMarkup('back',c.index)}</div>${bpExtraCardsMarkup(current[0],'back',c.index)}</div>`}).join('')}`;
@@ -7181,7 +7181,14 @@ try { blueprintUserEdits = JSON.parse(localStorage.getItem(BLUEPRINT_EDITS_KEY) 
 catch (e) { blueprintUserEdits = {}; }
 
 function saveBlueprintEdits() {
-  try { localStorage.setItem(BLUEPRINT_EDITS_KEY, JSON.stringify(blueprintUserEdits)); } catch (e) { /* 隐私模式等 */ }
+  try { localStorage.setItem(BLUEPRINT_EDITS_KEY, JSON.stringify(blueprintUserEdits)); }
+  catch (e) {
+    /* 原来这里只写了「隐私模式等」就吞掉了。落盘失败等于改完刷新全没，
+       必须说出来 —— 无痕窗口、存储被禁、配额满都会走到这。 */
+    if (typeof showToast === 'function')
+      showToast('修改没能存进浏览器（' + (e && e.name ? e.name : '未知原因')
+        + '）。无痕窗口或存储被禁时会这样，刷新后改动会丢。');
+  }
 }
 
 function blueprintRoleAt(sid, i) {
@@ -7202,9 +7209,12 @@ function writeBlueprintField(sid, kind, i, v, extra) {
     case 'roleDetail': if (!step) return false; step[2] = v; return true;
     case 'roleNote':   if (!step) return false; step[5] = v; return true;
     case 'system':     if (!step) return false; step[3] = v; return true;
-    case 'frontTitle': if (!entry || !entry[0]) return false; entry[0][0] = v; return true;
-    case 'frontDetail':if (!entry || !entry[0]) return false; entry[0][1] = v; return true;
-    case 'frontNote':  if (!entry || !entry[0]) return false; entry[0][2] = v; return true;
+    /* 前台这三条原来要求 entry[0] 预先存在，否则直接拒绝写入 —— 和下面后台那三条
+       不对称（后台会自动补建 entry[1]）。结果是前台格子在某些步骤上编辑完静默失败，
+       页面上字还在、一重绘就没了。这里改成和后台一样会补建容器。 */
+    case 'frontTitle': if (!entry) return false; if (!entry[0]) entry[0] = ['', '']; entry[0][0] = v; return true;
+    case 'frontDetail':if (!entry) return false; if (!entry[0]) entry[0] = ['', '']; entry[0][1] = v; return true;
+    case 'frontNote':  if (!entry) return false; if (!entry[0]) entry[0] = ['', '']; entry[0][2] = v; return true;
     case 'backTitle':  if (!entry) return false; if (!entry[1]) entry[1] = ['', '']; entry[1][0] = v; return true;
     case 'backDetail': if (!entry) return false; if (!entry[1]) entry[1] = ['', '']; entry[1][1] = v; return true;
     case 'backNote':   if (!entry) return false; if (!entry[1]) entry[1] = ['', '']; entry[1][2] = v; return true;
@@ -7435,7 +7445,36 @@ function downloadEditedHTML(){
 }
 function exportBlueprintChanges(){let data=JSON.stringify({scenarios:singleScenarios,details:detailedBlueprint,decisions:blueprintDecisions,links:linkEdits,text:allBlueprintText},null,2),a=document.createElement('a');a.href=URL.createObjectURL(new Blob([data],{type:'application/json'}));a.download='云管家蓝图编辑数据.json';a.click();setTimeout(()=>URL.revokeObjectURL(a.href),1000)}
 document.addEventListener('click',e=>{if(blueprintEditing&&e.target.closest('[contenteditable="true"]'))e.stopImmediatePropagation()},true);
-document.addEventListener('focusout',e=>{const key=e.target.dataset?.edit;if(!key)return;/* kind:下标[:目标场景id] —— 第三段是子场景入口用来区分同一步上多个入口的 */const seg=key.split(':'),kind=seg[0],i=Number(seg[1]),extra=seg[2];/* 读富文本：保留换行与加粗，其余标签剥掉 */const v=bpRichRead(e.target);if(bpRichEmpty(v))return;/* 统一走 setBlueprintField：写数据 + 登记为用户编辑 + 落盘，刷新后不会被文件补丁盖掉 */setBlueprintField(activeScenario,kind,i,v,extra)});
+/* 格子失焦即保存。
+ *
+ * 三处是修过的，都在「改完就没了」这条线上：
+ *
+ * 一、场景不再取全局 activeScenario，而是从格子所在的 .swimSection[data-scene] 上读。
+ *     原来用 activeScenario：如果失焦发生在场景已经切换之后（点泳道面板里的格子会
+ *     调 roleViewGo 换场景、点别的 tab 等），这条编辑就被写到另一个场景的同一列上 ——
+ *     你改的那一格看起来「没保存」，而另一个场景里莫名多出一条。
+ *
+ * 二、清空也保存。原来 bpRichEmpty(v) 就直接 return，想把一格删空根本删不掉：
+ *     松手之后文件默认值又回来了，看着就像「改了自己变回去」。
+ *     现在允许写空串；真要恢复文件默认值，用「重置本场景为文件默认」。
+ *
+ * 三、保存失败不再闷着。setBlueprintField 返回 false（路径在当前数据里不存在）
+ *     或落盘抛异常时，给一条可见提示，而不是让人以为存上了。
+ */
+document.addEventListener('focusout',e=>{
+  const key=e.target.dataset?.edit;if(!key)return;
+  /* kind:下标[:目标场景id] —— 第三段是子场景入口用来区分同一步上多个入口的 */
+  const seg=key.split(':'),kind=seg[0],i=Number(seg[1]),extra=seg[2];
+  /* 读富文本：保留换行与加粗，其余标签剥掉 */
+  const v=bpRichRead(e.target);
+  /* 场景以格子所属的泳道为准，取不到才退回 activeScenario */
+  const host=e.target.closest?e.target.closest('.swimSection[data-scene]'):null;
+  const sid=(host&&host.dataset&&host.dataset.scene)?host.dataset.scene:activeScenario;
+  let ok=false;
+  try{ ok=setBlueprintField(sid,kind,i,v,extra) }catch(err){ ok=false }
+  if(!ok&&typeof showToast==='function')
+    showToast('这一格没保存上：'+sid+' '+kind+'['+(i+1)+']。换个字段试试，或在控制台看报错。');
+});
 /* 通用文字编辑的键：用步骤标题而不是列下标。
  * 下标会随流程增删步骤整体后移，旧文本会被画到别的列上（文件更新看起来就像没生效）。
  * 标题稳定，和元素删除、状态标签的定位方式一致。 */
