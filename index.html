@@ -773,6 +773,21 @@ svg.flowlayer path.flowline.pathActive{stroke:#2459f4!important;stroke-width:3!i
 .olT.olBoth{background:#fff6ea;border-color:#e0b070}
 .olT.olBoth:hover{background:#ffeed8;border-color:#d49b32}
 .olT .olFlag{display:block;margin-top:3px;font-size:9px;color:#9a6b12}
+.olT .olPing{display:block;margin-top:4px;font-size:9px;line-height:1.55;color:#b24a3c}
+.olPlain{margin:0 0 12px;padding:12px 14px;border:1px solid #dae3ef;border-radius:8px;
+  background:#f7faff;font-size:12px;line-height:1.75;color:#2b3a4d}
+.olPlain h4{margin:0 0 6px;font-size:13px;color:#1f2d3d}
+.olPlain p{margin:0 0 10px;color:#5a6b80}
+.olPlain ol{margin:0;padding-left:18px}
+.olPlain li{margin-bottom:9px}
+.olPlain li>b{color:#1f2d3d}
+.olPlain .olRow{margin-top:3px;padding-left:2px}
+.olPlain .olRow em{display:inline-block;min-width:112px;font-style:normal;font-weight:600;
+  font-size:11px;color:#2459ee}
+.olPlain .olRow.olRowSys em{color:#167968}
+.olPlain .olRow code{margin-right:7px;font-size:11px;color:#5a6b80;
+  font-family:ui-monospace,Menlo,monospace}
+.olPlain .olRow code b{font-weight:600;color:#1f2d3d;font-family:inherit}
 /* 角色徽章：直接吃 role-* 那套变量，和泳道图里同一个角色同色 */
 .olT .olWho{display:inline-block;margin-top:4px;padding:1px 5px;font-style:normal;
   text-decoration:none;font-size:9px;line-height:1.6;border-radius:3px;
@@ -14283,6 +14298,86 @@ renderSingleScenario('main');
     });
     return { lanes: lanes, kinds: kinds, total: total, both: both, missed: missed };
   }
+  /* 角色收成业务看得懂的几档。roleType 把主管和员工都归成 field，
+     而「谁要接」这件事上两者必须分开，所以按角色名里有没有「主管」再切一刀。 */
+  function olWho5(role) {
+    const r = String(role || '');
+    if (!r) return '没写角色';
+    const k = (typeof roleType === 'function') ? roleType(r).k : '';
+    if (k === 'system') return '系统自动';
+    if (r.indexOf('主管') >= 0) return '主管';
+    if (k === 'field') return '员工';
+    if (k === 'store') return '仓管／收货人';
+    if (k === 'support') return 'THD';
+    if (k === 'hq') return '总部';
+    if (k === 'supplier') return '供应商';
+    return (typeof roleType === 'function') ? roleType(r).name : '其他';
+  }
+  /* 系统反馈：前台或后台文案里出现这些词，就说明这一步系统会主动推东西给人 */
+  function olPingOf(t) {
+    const s = String(t.front || '') + String(t.frontNote || '')
+            + String(t.back || '') + String(t.backNote || '');
+    const m = s.match(/推送|提醒|通知|弹窗|角标|消息|催办|告警|报警/g);
+    if (!m) return '';
+    const seen = [], out = [];
+    m.forEach(function (w) { if (seen.indexOf(w) < 0) { seen.push(w); out.push(w); } });
+    return out.join('／');
+  }
+  /* 面板顶部的白话总览：直接回答「谁新建、谁要接、谁来结、系统会提醒哪些」 */
+  function olPlainSummary(d) {
+    const e = stBoardEsc;
+    const all = [];
+    d.lanes.forEach(function (ln) {
+      d.kinds.forEach(function (k) { (ln.cells[k] || []).forEach(function (t) { all.push(t); }); });
+    });
+    const idOf = function (t) {
+      return String(t.sid).toUpperCase() + '-' + String(t.i + 1).padStart(2, '0'); };
+    const chips = function (list) {
+      return list.map(function (t) {
+        return '<code><b>' + e(idOf(t)) + '</b> ' + e(t.title) + '</code>'; }).join('');
+    };
+    /* 按档位分组，档位顺序固定，读起来才稳定 */
+    const ORDER = ['系统自动', '主管', '员工', '仓管／收货人', 'THD', '总部', '供应商', '没写角色'];
+    const rows = function (list, sysTone) {
+      const g = {};
+      list.forEach(function (t) { const w = olWho5(t.role); (g[w] = g[w] || []).push(t); });
+      return ORDER.filter(function (w) { return g[w]; }).map(function (w) {
+        return '<div class="olRow' + (sysTone && w === '系统自动' ? ' olRowSys' : '') + '">'
+          + '<em>' + e(w) + ' ' + g[w].length + ' 个</em>' + chips(g[w]) + '</div>';
+      }).join('');
+    };
+    const pick = function (kind) {
+      return all.filter(function (t) { return t.kind === kind; }); };
+    const pings = all.filter(function (t) { return olPingOf(t); });
+    const totalSteps = (typeof singleScenarios !== 'undefined')
+      ? singleScenarios.reduce(function (s, x) { return s + ((x[4] || []).length); }, 0) : 0;
+    const q = [];
+    q.push('<li><b>哪些节点会新建一张工单（' + pick('派发').length + ' 个）</b>'
+      + rows(pick('派发'), true) + '</li>');
+    q.push('<li><b>谁要接单（' + pick('接单').length + ' 个）</b>'
+      + rows(pick('接单'), false) + '</li>');
+    q.push('<li><b>谁来结单（' + pick('结单').length + ' 个）</b>'
+      + rows(pick('结单'), true) + '</li>');
+    const rest = ['挂起', '催办', '卡单', '撤回'].filter(function (k) { return pick(k).length; });
+    if (rest.length) {
+      q.push('<li><b>中途还要动工单的（'
+        + rest.reduce(function (s, k) { return s + pick(k).length; }, 0) + ' 个）</b>'
+        + rest.map(function (k) {
+            return '<div class="olRow"><em>' + e(k) + ' ' + pick(k).length + ' 个</em>'
+              + chips(pick(k)) + '</div>'; }).join('') + '</li>');
+    }
+    q.push('<li><b>系统会主动提醒的节点（' + pings.length + ' 个）</b>'
+      + '<div class="olRow olRowSys"><em>推送给人</em>'
+      + pings.map(function (t) {
+          return '<code><b>' + e(idOf(t)) + '</b> ' + e(olPingOf(t)) + '</code>'; }).join('')
+      + '</div></li>');
+    return '<div class="olPlain"><h4>先看这几句</h4>'
+      + '<p>下面这 ' + all.length + ' 个节点，就是全流程里<b>所有碰到 CKFM 工单的地方</b>'
+      + '（蓝图一共 ' + totalSteps + ' 步，其余 ' + (totalSteps - all.length)
+      + ' 步只动资产或只是现场动作，不碰工单）。其中 ' + d.both
+      + ' 个节点在动工单的同时也改资产状态，格子底色是橙的。</p>'
+      + '<ol>' + q.join('') + '</ol></div>';
+  }
   function olKey(e) { if (e.key === 'Escape') { e.preventDefault(); closeOrderLaneView(); } }
   function closeOrderLaneView() {
     const el = document.getElementById('orderLaneView');
@@ -14315,14 +14410,15 @@ renderSingleScenario('main');
             + '<em>' + e(t.at) + '</em>'
             + (t.role ? '<u class="olWho ' + e(t.roleCls) + '">' + e(t.role) + '</u>' : '')
             + '<b>' + e(t.title) + '</b>'
-            + (t.when ? '<span class="olWhen">何时 · ' + e(t.when) + '</span>' : '')
-            + (t.front ? '<span class="olFront">前端 · ' + e(t.front)
+            + (t.when ? '<span class="olWhen">什么时候 · ' + e(t.when) + '</span>' : '')
+            + (t.front ? '<span class="olFront">用户看到 · ' + e(t.front)
                  + (t.frontNote ? '<small>' + e(t.frontNote) + '</small>' : '')
                  + '</span>' : '')
             + (t.back ? '<span class="olMake' + (isNew ? ' olMakeNew' : '') + '">'
-                 + (isNew ? '开单 · ' : '后台 · ') + e(t.back)
+                 + (isNew ? '这里新建工单 · ' : '系统做 · ') + e(t.back)
                  + (t.backNote ? '<small>' + e(t.backNote) + '</small>' : '')
                  + '</span>' : '')
+            + (olPingOf(t) ? '<span class="olPing">系统会提醒 · ' + e(olPingOf(t)) + '</span>' : '')
             + (t.hits === '两边都动' ? '<span class="olFlag">＋同时动资产状态</span>' : '')
             + '</button>';
         }).join('') + '</div>';
@@ -14338,11 +14434,13 @@ renderSingleScenario('main');
       + ' title="关闭（Esc）">\u00d7</button></div>'
       + '<div class="rvRaw"><span>怎么读：</span>'
       + '<code>行＝单子类型</code><code>列＝工单动作</code>'
-      + '<code>灰徽章＝谁做（同泳道图配色）</code><code>何时＝资产状态迁移的那一刻</code>'
-      + '<code>前端＝在哪个页面、用户看到什么</code>'
-      + '<code>红色「开单」＝这一步新建一张单</code><code>绿色「后台」＝在已有单上操作</code>'
+      + '<code>徽章＝谁做</code><code>什么时候＝资产状态变的那一刻</code>'
+      + '<code>用户看到＝哪个页面、显示什么</code>'
+      + '<code>红色＝这一步新建工单</code><code>绿色＝在已有工单上操作</code>'
+      + '<code>砖红＝系统会主动推送提醒</code>'
       + '<code>橙色＝同时动资产状态</code><code>点格子跳到那一步</code></div>'
       + '<div class="rvBody">'
+      + olPlainSummary(d)
       + '<div class="olWrap"><div class="olGrid" style="grid-template-columns:' + cols + '">'
       + g + '</div></div>'
       + '<div class="olNote"><b>「工单类别」为什么整列留空：</b>'
