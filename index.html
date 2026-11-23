@@ -927,7 +927,11 @@ svg.flowlayer path.flowline.pathActive{stroke:#2459f4!important;stroke-width:3!i
   <div><div class="title">云管家固定资产 · 交互式建档蓝图</div><div class="subtitle">历史资产初始化与供应商发运建档｜点击节点查看场景、角色和待确认问题</div></div>
   <!-- 中间那行统计由 renderHeaderMeta() 从真实数据算出来填进去，不要写死，
        否则增删阶段 / 角色 / 触点之后这里就会对不上。 -->
-  <div class="headerMeta">图号 <b class="mono">BP-ASSET-01</b><br><span id="headerStats"></span><br>视角：Human Action × System Touchpoint × Feedback × Next Action
+  <!-- 整块挂 ownerOnly：分享出去（只读模式）时图号、统计行、视角行和那两个
+       工具按钮一起收起来 —— 对外看的人不需要这些，只读模式的 CSS 规则
+       body.reviewOnly .ownerOnly{display:none} 负责藏。你自己在本机打开
+       （file:// 或 localhost）默认是所有者，照样看得见。 -->
+  <div class="headerMeta ownerOnly">图号 <b class="mono">BP-ASSET-01</b><br><span id="headerStats"></span><br>视角：Human Action × System Touchpoint × Feedback × Next Action
     <br><button type="button" class="olBtn" onclick="openOrderLaneView()" title="按单子类型看全流程的工单动作">查看工单泳道图</button>
     <button type="button" class="olBtn" onclick="exportMergePack()" title="把这个浏览器里的修改导成可并进文件的包">导出并入包</button>
     <!-- 变更说明按钮先隐藏。面板和 openChangeDocView() 都留着，内容也还在
@@ -2018,6 +2022,17 @@ function readShareMode(){
     mode=new URLSearchParams(location.search).get('mode')||'';
     if(!mode)mode=new URLSearchParams(String(location.hash||'').replace(/^#/,'')).get('mode')||'';
   }catch(error){}
+  /* 没写 mode 时按「在哪打开的」定默认：
+     file:// 和 localhost ／ 127.0.0.1 是你自己在本机看，默认所有者；
+     部署到公网域名上（GitHub Pages 这类带点的 hostname）默认只读 ——
+     分享出去的链接不该一上来就给人完整编辑权限，右上角那排也跟着收起来。
+     自己要在线上用完整权限，链接后面加 ?mode=owner。
+     判据要「正向识别公网域名」而不是「不是本机就算公网」：测试用的桩
+     location 只给 href、hostname 写成 'x'，反向判会把它们全推进只读模式。 */
+  if(!mode
+     &&/^https?:$/.test(String(location.protocol||''))
+     &&!isLocalOnlyHost()
+     &&String(location.hostname||'').indexOf('.')>=0) mode='review';
   shareMode=SHARE_MODES[mode]?mode:'owner';
   document.body.classList.toggle('reviewOnly',!canEdit());
   document.body.dataset.shareMode=shareMode;
