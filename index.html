@@ -9096,7 +9096,10 @@ completeScenarioEntrances();
  *   实物怎么回（退回物流单号要留痕，PO 行的数量要回滚）
  */
 (function addCancelScenarios() {
-  if (singleScenarios.some(x => x[0] === 's2a')) return;      /* 已经加过 */
+  /* 幂等判据用 s2b 而不是 s2a —— s2a 可能被下面那个隐藏开关收走，
+     用它当判据的话，分享导出的内嵌结构（不含 s2a）会让这里再跑一遍，
+     把 s2b 加成两份。s2b 在「隐藏」和「放出来」两种状态下都在。 */
+  if (singleScenarios.some(x => x[0] === 's2b')) return;      /* 已经加过 */
 
   const mk = (id, name, sub, desc, steps, details, arts, infos, integ, decs, branches) => {
     singleScenarios.push([id, name, sub, desc, steps]);
@@ -9284,6 +9287,87 @@ completeScenarioEntrances();
     blueprintDecisions.s1.push({ after: 0, title: '供应商是否已经发货？', target: 's2a',
       yes: '否：继续取消', no: '是：货物已发出' });
   }
+
+  try {
+    if (localStorage.getItem('asset-blueprint-custom-v4') && typeof persistBlueprint === 'function') persistBlueprint();
+  } catch (e) { /* 无本地存储时忽略 */ }
+})();
+
+/* ───────── 「已发货后取消」暂时只留 ② 拒收退回 ─────────
+ *
+ * 业务确认：① 在途拦截（货还在路上就拦下来退回）和 ③ 部分取消（拆单）
+ * 这两件事现实里没有。所以这里是「隐藏」不是「删除」——
+ * 上面 addCancelScenarios() 里三支的数据一个字都没动（步骤、前台后台、交付物、
+ * 信息流，以及状态机那张按标题索引的表里 s2a／s2c 的条目），
+ * 把下面这个开关改回 true，①③ 连同入口和菱形一起回来。
+ *
+ * 你在这两支上改过的文字也没丢：它们按「场景:字段:列号」记在 blueprintUserEdits 里，
+ * 隐藏期间锚点对不上会被 applyBlueprintUserEdits() 跳过（continue，不是 delete），
+ * 开关一开就重新套上。
+ *
+ * 隐藏必须连引用一起收走，否则会留下点不开的跳转按钮（这个坑在旧 S2 身上踩过一次）：
+ *   · main 发货那一步指向 S2A 的子场景入口      → 改指 S2B
+ *   · S1「供应商是否已经发货？」菱形的 target    → 改指 S2B
+ *   · S2C 自己那个「退回还是留库」菱形           → 跟着 S2C 一起走
+ *   · tab 组里 ①③ 两个标签、工单泳道里 S2A 那个触点
+ * 上面两处是改指而不是删掉：「已经发货了」之后现实里的去向就剩拒收退回这一条，
+ * 把菱形整条删了，「发货之后还能不能取消」在图上就没有答案了。
+ * 前置阶段的场景清单和工单泳道的 ids 改成按「场景还在不在」过滤，
+ * 所以不用再维护第二处开关。
+ */
+const SHOW_CANCEL_INTERCEPT_AND_SPLIT = false;
+(function hideCancelBranches() {
+  if (SHOW_CANCEL_INTERCEPT_AND_SPLIT) return;          /* 开关一开，什么都不做 */
+  const GONE = ['s2a', 's2c'], KEEP = 's2b';
+  const KEEP_LABEL = 'S2B · 已发货后取消：拒收退回';
+  if (!singleScenarios.some(x => x[0] === KEEP)) return; /* 留下的那支都不在，别动 */
+
+  /* 场景本体与随行的五份数据 */
+  for (const id of GONE) {
+    const at = singleScenarios.findIndex(x => x && x[0] === id);
+    if (at >= 0) singleScenarios.splice(at, 1);
+    for (const hash of [detailedBlueprint, scenarioArtifacts, scenarioInformation,
+                        integrationSteps, scenarioBranchIndex, blueprintDecisions]) {
+      if (hash) delete hash[id];
+    }
+  }
+  /* 别的场景里指过来的入口按钮：S2A 那个改指 S2B；S2C 没有别处的入口 */
+  for (const sid of Object.keys(scenarioBranchIndex || {})) {
+    const byStep = scenarioBranchIndex[sid] || {};
+    for (const k of Object.keys(byStep)) {
+      const kept = [];
+      for (const b of (byStep[k] || [])) {
+        if (!b || GONE.indexOf(b[0]) < 0) { kept.push(b); continue; }
+        if (b[0] !== 's2a') continue;
+        if (!kept.some(x => x && x[0] === KEEP)) kept.push([KEEP, KEEP_LABEL]);
+      }
+      if (kept.length) byStep[k] = kept; else delete byStep[k];
+    }
+  }
+  /* 判断菱形：S1 那条改指 S2B，别的指过来的整条去掉 */
+  for (const sid of Object.keys(blueprintDecisions || {})) {
+    if (!Array.isArray(blueprintDecisions[sid])) continue;
+    blueprintDecisions[sid] = blueprintDecisions[sid].filter(function (d) {
+      if (!d || !d.target || GONE.indexOf(d.target) < 0) return true;
+      if (d.target !== 's2a') return false;
+      d.target = KEEP; return true;
+    });
+  }
+  /* tab 组：只留 ②。序号一起去掉 —— 留着「②」会让人去找不存在的 ①③ */
+  for (const g of BP_TAB_GROUPS) {
+    if (!g || (g.ids || []).indexOf(KEEP) < 0) continue;
+    const labels = [];
+    g.ids.forEach(function (id, k) {
+      if (GONE.indexOf(id) >= 0) return;
+      labels.push(String((g.labels || [])[k] || id).replace(/^[①②③④⑤⑥⑦⑧⑨]\s*/, ''));
+    });
+    g.ids = g.ids.filter(function (id) { return GONE.indexOf(id) < 0 });
+    g.labels = labels;
+  }
+  /* 工单泳道的触点 */
+  for (const id of GONE) delete TASK_STEPS[id];
+  for (const k of Object.keys(TASK_SYS))
+    if (GONE.indexOf(String(k).split('|')[0]) >= 0) delete TASK_SYS[k];
 
   try {
     if (localStorage.getItem('asset-blueprint-custom-v4') && typeof persistBlueprint === 'function') persistBlueprint();
@@ -10009,7 +10093,10 @@ function blankSystemTouchpoints() {
         + '它只读：一台设备的状态由七条流程去改，这一页不改任何状态，'
         + '所以它不进状态机，只负责把已经发生的事按时间轴摊开给人看。' },
     { id: 'pre', tag: '前置', name: '需求与采购', extra: true,
-      ids: ['s11', 's12', 's13', 's14', 's8', 's1', 's2a', 's2b', 's2c'],
+      /* s2a 在途拦截、s2c 部分取消现在是隐藏的（见 SHOW_CANCEL_INTERCEPT_AND_SPLIT），
+         所以这里按「场景还在不在」过滤 —— 开关一开，两张卡自己回来。 */
+      ids: ['s11', 's12', 's13', 's14', 's8', 's1', 's2a', 's2b', 's2c']
+        .filter(id => singleScenarios.some(x => x[0] === id)),
       note: '这一阶段不在业务流程图里（业务流程图从“发运建档”开始），是蓝图为上游补充的：需求从哪来、采购审批、下 PO、PO 取消或修改。常规流程从供应商发货起，不再重复这些步骤。' },
     { id: 'init', tag: '初始化', name: '历史资产初始化', extra: true,
       ids: ['s7'],
@@ -10019,6 +10106,9 @@ function blankSystemTouchpoints() {
     { id: 'p2', tag: '流程2', name: '到货验收', chart: { key: 'p2', page: 3, title: '2. 到货验收（2.1 发运地=仓库／2.2 发运地=保养站）' },
       ids: ['s9', 's9p', 's9x', 's6'] },
     { id: 'p3', tag: '流程3', name: '领料安装', chart: { key: 'p3', page: 4, title: '3. 领料安装' },
+      /* l1m 手工新增安装任务现在是隐藏的，由 hideManualInstallTask() 摘掉。
+         这里不能按「场景还在不在」过滤 —— STAGES 定义的时候 l1r／l1x 还没建出来，
+         过滤会把它们一起滤掉（踩过：导航卡 48 对不上场景 51）。 */
       ids: ['l1', 'l1m', 'l1r', 'l1x', 'l2', 'l3', 'l4', 'l5', 'l6'] },
     { id: 'p4', tag: '流程4', chart: { key: 'p4', page: 5, title: '4. 注册上线' }, name: '注册上线',
       ids: ['r1', 'r2', 'r3', 'r4', 'r6', 'r7'],
@@ -10610,6 +10700,74 @@ function blankSystemTouchpoints() {
       g.ids.splice(k, 0, 'l1x');
       g.labels.splice(k, 0, '异常换货／退料：领错了');
     }
+  })();
+
+  /* ───────── 「主管手工新增安装任务」（L1M）先隐藏 ─────────
+   *
+   * 业务确认：没有「维保系统里查不到这台梯、主管在 App 点【新增安装任务】手工加」这件事。
+   * 所以是隐藏不是删除 —— 上面 addManualInstallTask() 里 L1M 的四步、前台后台、交付物、
+   * 信息流，以及 SPEC.l1m、PHASE_GROUPS.l1m、TASK_STEPS／TASK_SYS 里那两条触点的
+   * 字面量全都原样留着，把下面这个开关改回 true 就整条回来。
+   *
+   * 这一支的上游是 L1 第 1 步那个菱形「维保系统里有这台电梯吗？」，它只为 L1M 而存在
+   * （「有」那一支就是直行的正常路）。但菱形本身不删 —— 删了就回到原来
+   * 「默认任务总是自动下发下来」的样子，而「新梯还没建档、维保数据没同步过来，
+   * 待分配池里就没有这条任务」是真实存在的情形（见上面那段注释）。
+   * 所以保留问题、去掉跳转，把「没有」那一支改写成一条待确认 ——
+   * 怎么补由业务定，这里不替业务编一条流程。
+   */
+  const SHOW_MANUAL_INSTALL_TASK = false;
+  (function hideManualInstallTask() {
+    if (SHOW_MANUAL_INSTALL_TASK) return;                 /* 开关一开，什么都不做 */
+    const ID = 'l1m';
+    if (!singleScenarios.some(x => x[0] === ID)) return;
+
+    const at = singleScenarios.findIndex(x => x && x[0] === ID);
+    if (at >= 0) singleScenarios.splice(at, 1);
+    for (const hash of [detailedBlueprint, scenarioArtifacts, scenarioInformation,
+                        integrationSteps, scenarioBranchIndex, blueprintDecisions]) {
+      if (hash) delete hash[ID];
+    }
+    /* 指过来的子场景入口（眼下没有，留着防以后加） */
+    for (const sid of Object.keys(scenarioBranchIndex || {})) {
+      const byStep = scenarioBranchIndex[sid] || {};
+      for (const k of Object.keys(byStep)) {
+        const kept = (byStep[k] || []).filter(b => b && b[0] !== ID);
+        if (kept.length) byStep[k] = kept; else delete byStep[k];
+      }
+    }
+    /* L1 第 1 步那个菱形：问题留着，去掉跳转，「没有」那一支改成待确认 */
+    for (const sid of Object.keys(blueprintDecisions || {})) {
+      for (const d of (blueprintDecisions[sid] || [])) {
+        if (!d || d.target !== ID) continue;
+        delete d.target;
+        d.no = '待确认：怎么补还没定';
+        d.note = '业务确认没有「主管在 App 点【新增安装任务】手工加」这件事，'
+          + '原来挂在这一支的 L1M 已隐藏（开关 SHOW_MANUAL_INSTALL_TASK，改回 true 即恢复）。'
+          + '维保系统里查不到这台电梯、现场却确实要装时怎么办，由业务定 —— '
+          + '这里只把问题留在图上，不替业务编一条流程。';
+      }
+    }
+    /* 阶段的场景清单。放在这里而不是 STAGES 的字面量上 ——
+       STAGES 定义时 l1r／l1x 还没建出来，在字面量上按存在性过滤会把它们一起滤掉。 */
+    for (const st of STAGES) {
+      if (Array.isArray(st.ids)) st.ids = st.ids.filter(id => id !== ID);
+    }
+    /* tab 组：成员和标签成对摘掉 */
+    for (const g of BP_TAB_GROUPS) {
+      const k = (g && g.ids) ? g.ids.indexOf(ID) : -1;
+      if (k < 0) continue;
+      g.ids.splice(k, 1);
+      if (Array.isArray(g.labels)) g.labels.splice(k, 1);
+    }
+    /* 工单泳道的两条触点 */
+    delete TASK_STEPS[ID];
+    for (const k of Object.keys(TASK_SYS))
+      if (String(k).split('|')[0] === ID) delete TASK_SYS[k];
+
+    try {
+      if (localStorage.getItem('asset-blueprint-custom-v4') && typeof persistBlueprint === 'function') persistBlueprint();
+    } catch (e) { /* 无本地存储时忽略 */ }
   })();
 
   /* ───────── 流程4 注册上线与异常处理 ─────────
@@ -12228,13 +12386,13 @@ function blankSystemTouchpoints() {
          + '点泳道上的任务标进去选「按状态看」，或者直接点生命周期带上的某个状态。', '',
          '这张表是从状态机和任务触点推出来的，不是画死的 —— 流程改了它跟着变，'
          + '所以不会退化成一张过期的图。'
-         + '现在推出来的结果：31 个资产状态里 10 个有任务在推，另外 21 个没有任务触点。'
-         + '这 21 个不是一律算缺口 —— 表上按为什么没有分了几类：'
+         + '现在推出来的结果：30 个资产状态里 10 个有任务在推，另外 20 个没有任务触点。'
+         + '这 20 个不是一律算缺口 —— 表上按为什么没有分了几类：'
          + '物流在途 5 个（已出库（在途／待接收）、退回中那几个、待补发 ／ 待追踪）'
          + '是实物在路上，等到货和回传，没人要操作，做成工单也没人点；'
          + '同一张工单往下走 2 个（待质返、待报废）接的是上一步那张单；'
          + '在别的系统推进 1 个（客户反馈中（CAT）在供应线）；'
-         + '系统自己转 2 个（已注册（未联网）、已建档）；线下动作 1 个（已取消）；'
+         + '系统自己转 2 个（已注册（未联网）、已建档）；'
          + '跨流程交接 4 个；正常终态 3 个；口径占位 1 个。'
          + '剩下 2 个是真疑点，单独标出来：'
          + '异常暂存（整箱待拆）—— 等总部补建档解冻，等待期间无人跟；'
@@ -14534,10 +14692,14 @@ renderSingleScenario('main');
    * 「工单类别」那一列刻意留空：CKFM 现有的保养／走修／专项够不够用、
    * 安装注册要不要新开一类，这是业务口径，不替业务填。
    */
+  /* S2A 在途拦截是隐藏的（见 SHOW_CANCEL_INTERCEPT_AND_SPLIT），所以这一条
+     按「场景还在不在」过滤，连那句解释也一起让位；开关一开，触点和说明都回来。 */
+  const olHas = id => singleScenarios.some(x => x[0] === id);
   const ORDER_LANES = [
-    ['到货验收单', ['s9', 's9p', 's9x', 's2a'],
-     '收货人／仓管的验收活。S2A 撤回的就是这张「待收货任务」，所以归在一起。'],
-    ['安装注册单', ['l1', 'l1m', 'l1r', 'l1x', 'r1'],
+    ['到货验收单', ['s9', 's9p', 's9x', 's2a'].filter(olHas),
+     '收货人／仓管的验收活。' + (olHas('s2a')
+       ? 'S2A 撤回的就是这张「待收货任务」，所以归在一起。' : '')],
+    ['安装注册单', ['l1', 'l1m', 'l1r', 'l1x', 'r1'].filter(olHas),
      '现场装云管家。待确认：流程3 领料安装和流程4 注册上线是一张单还是两张 —— '
      + 'L1「工单结单」和 R1「结束工单」现在各自结一次。'],
     ['缺件补发单', ['l6'], '向供应商提补发，补发件回来还要重走建档与验收。'],
