@@ -9145,10 +9145,12 @@ completeScenarioEntrances();
  *   实物怎么回（退回物流单号要留痕，PO 行的数量要回滚）
  */
 (function addCancelScenarios() {
-  /* 幂等判据用 s2b 而不是 s2a —— s2a 可能被下面那个隐藏开关收走，
-     用它当判据的话，分享导出的内嵌结构（不含 s2a）会让这里再跑一遍，
-     把 s2b 加成两份。s2b 在「隐藏」和「放出来」两种状态下都在。 */
-  if (singleScenarios.some(x => x[0] === 's2b')) return;      /* 已经加过 */
+  /* 幂等判据认「三支一支都不在」—— 不能只认其中某一支。
+     三支现在全被下面那个隐藏开关收走（业务说这三件事现实里都没有），
+     拿单独一支当判据的话，分享导出的内嵌结构里那一支也不在，
+     这段就会再跑一遍，把另外两支加成两份。
+     上一版判据是 s2b，那时 ② 还留着；现在 ② 也没了，判据必须跟着改。 */
+  if (['s2a', 's2b', 's2c'].some(id => singleScenarios.some(x => x[0] === id))) return;   /* 已经加过 */
 
   const mk = (id, name, sub, desc, steps, details, arts, infos, integ, decs, branches) => {
     singleScenarios.push([id, name, sub, desc, steps]);
@@ -9342,34 +9344,39 @@ completeScenarioEntrances();
   } catch (e) { /* 无本地存储时忽略 */ }
 })();
 
-/* ───────── 「已发货后取消」暂时只留 ② 拒收退回 ─────────
+/* ───────── 「已发货后取消」三支全部隐藏 ─────────
  *
- * 业务确认：① 在途拦截（货还在路上就拦下来退回）和 ③ 部分取消（拆单）
- * 这两件事现实里没有。所以这里是「隐藏」不是「删除」——
- * 上面 addCancelScenarios() 里三支的数据一个字都没动（步骤、前台后台、交付物、
- * 信息流，以及状态机那张按标题索引的表里 s2a／s2c 的条目），
- * 把下面这个开关改回 true，①③ 连同入口和菱形一起回来。
+ * 业务确认：① 在途拦截（货还在路上就拦下来退回）、② 拒收退回（到了分公司但还没验收）、
+ * ③ 部分取消（拆单）—— 这三件事现实里都没有。
+ * ② 是后补确认的：11/24 之前只隐藏了 ①③，② 当时留着。
  *
- * 你在这两支上改过的文字也没丢：它们按「场景:字段:列号」记在 blueprintUserEdits 里，
- * 隐藏期间锚点对不上会被 applyBlueprintUserEdits() 跳过（continue，不是 delete），
- * 开关一开就重新套上。
+ * 所以这里是「隐藏」不是「删除」：上面 addCancelScenarios() 里三支的数据一个字都没动
+ * （步骤、前台后台、交付物、信息流，以及状态机那张按标题索引的表里
+ * s2a／s2b／s2c 的条目），把下面这个开关改回 true，三支连同入口和菱形一起回来。
+ *
+ * 你在这三支上改过的文字也没丢（② 上面有 9 条）：它们按「场景:字段:列号」
+ * 记在 blueprintUserEdits 里，隐藏期间锚点对不上会被 applyBlueprintUserEdits() 跳过
+ * （continue，不是 delete），开关一开就重新套上。
  *
  * 隐藏必须连引用一起收走，否则会留下点不开的跳转按钮（这个坑在旧 S2 身上踩过一次）：
- *   · main 发货那一步指向 S2A 的子场景入口      → 改指 S2B
- *   · S1「供应商是否已经发货？」菱形的 target    → 改指 S2B
+ *   · main 发货那一步指向 S2A 的子场景入口      → 整条去掉（没有可改指的兄弟了）
+ *   · S1「供应商是否已经发货？」菱形            → 问题留着、去掉跳转、「是」改成待确认
+ *   · S9 第 3 步「已取消要拒收」那个入口         → splitArrivalOnSubmit 里按存在性过滤
  *   · S2C 自己那个「退回还是留库」菱形           → 跟着 S2C 一起走
- *   · tab 组里 ①③ 两个标签、工单泳道里 S2A 那个触点
- * 上面两处是改指而不是删掉：「已经发货了」之后现实里的去向就剩拒收退回这一条，
- * 把菱形整条删了，「发货之后还能不能取消」在图上就没有答案了。
- * 前置阶段的场景清单和工单泳道的 ids 改成按「场景还在不在」过滤，
+ *   · tab 组「已发货后取消」整组摘掉、工单泳道里 S2A 那个触点
+ *
+ * 上一版这里写的是「S2A 改指 S2B」，因为那时 ② 还留着。现在三支都没了，无处可改指；
+ * 但 S1 那个菱形不能整条删 —— 删了「发货之后还能不能取消」在图上就没有答案了。
+ * 所以按 L1M 那条已有的办法办（见 hideManualInstallTask）：问题留在图上、去掉跳转、
+ * 出口写成待确认，不替业务编一条流程。
+ * 前置阶段的场景清单和工单泳道的 ids 本来就按「场景还在不在」过滤，
  * 所以不用再维护第二处开关。
  */
 const SHOW_CANCEL_INTERCEPT_AND_SPLIT = false;
 (function hideCancelBranches() {
   if (SHOW_CANCEL_INTERCEPT_AND_SPLIT) return;          /* 开关一开，什么都不做 */
-  const GONE = ['s2a', 's2c'], KEEP = 's2b';
-  const KEEP_LABEL = 'S2B · 已发货后取消：拒收退回';
-  if (!singleScenarios.some(x => x[0] === KEEP)) return; /* 留下的那支都不在，别动 */
+  const GONE = ['s2a', 's2b', 's2c'];
+  if (!GONE.some(id => singleScenarios.some(x => x[0] === id))) return;  /* 一支都不在，别动 */
 
   /* 场景本体与随行的五份数据 */
   for (const id of GONE) {
@@ -9380,38 +9387,43 @@ const SHOW_CANCEL_INTERCEPT_AND_SPLIT = false;
       if (hash) delete hash[id];
     }
   }
-  /* 别的场景里指过来的入口按钮：S2A 那个改指 S2B；S2C 没有别处的入口 */
+  /* 别的场景里指过来的入口按钮：三支都没了，没有可改指的，整条去掉 */
   for (const sid of Object.keys(scenarioBranchIndex || {})) {
     const byStep = scenarioBranchIndex[sid] || {};
     for (const k of Object.keys(byStep)) {
-      const kept = [];
-      for (const b of (byStep[k] || [])) {
-        if (!b || GONE.indexOf(b[0]) < 0) { kept.push(b); continue; }
-        if (b[0] !== 's2a') continue;
-        if (!kept.some(x => x && x[0] === KEEP)) kept.push([KEEP, KEEP_LABEL]);
-      }
+      const kept = (byStep[k] || []).filter(b => b && GONE.indexOf(b[0]) < 0);
       if (kept.length) byStep[k] = kept; else delete byStep[k];
     }
   }
-  /* 判断菱形：S1 那条改指 S2B，别的指过来的整条去掉 */
+  /* 判断菱形：S1「供应商是否已经发货？」问题留着、去掉跳转、「是」那一支改成待确认；
+     别的指过来的（S2C 自己那个「退回还是留库」）整条去掉。 */
   for (const sid of Object.keys(blueprintDecisions || {})) {
     if (!Array.isArray(blueprintDecisions[sid])) continue;
     blueprintDecisions[sid] = blueprintDecisions[sid].filter(function (d) {
       if (!d || !d.target || GONE.indexOf(d.target) < 0) return true;
-      if (d.target !== 's2a') return false;
-      d.target = KEEP; return true;
+      if (String(d.title || '').indexOf('供应商是否已经发货') < 0) return false;
+      delete d.target;
+      d.no = '是：待确认（已发货之后怎么处理还没定）';
+      d.note = '业务确认「已发货后取消」三支（在途拦截／拒收退回／部分取消）现实里都没有，'
+        + '已随开关 SHOW_CANCEL_INTERCEPT_AND_SPLIT 一起隐藏，改回 true 即恢复。'
+        + '货已经发出之后还能不能取消、怎么退，由业务定 —— '
+        + '这里只把问题留在图上，不替业务编一条流程。';
+      return true;
     });
   }
-  /* tab 组：只留 ②。序号一起去掉 —— 留着「②」会让人去找不存在的 ①③ */
-  for (const g of BP_TAB_GROUPS) {
-    if (!g || (g.ids || []).indexOf(KEEP) < 0) continue;
-    const labels = [];
+  /* tab 组：三支全没了，「已发货后取消」整组摘掉 —— 留个空壳会画出一条没有标签的 tab 条。
+     只碰含 GONE 成员的组，别去动别人的标签。 */
+  for (let i = BP_TAB_GROUPS.length - 1; i >= 0; i--) {
+    const g = BP_TAB_GROUPS[i];
+    if (!g || !Array.isArray(g.ids) || !g.ids.some(id => GONE.indexOf(id) >= 0)) continue;
+    const keptIds = [], keptLabels = [];
     g.ids.forEach(function (id, k) {
       if (GONE.indexOf(id) >= 0) return;
-      labels.push(String((g.labels || [])[k] || id).replace(/^[①②③④⑤⑥⑦⑧⑨]\s*/, ''));
+      keptIds.push(id);
+      keptLabels.push(String((g.labels || [])[k] || id).replace(/^[①②③④⑤⑥⑦⑧⑨]\s*/, ''));
     });
-    g.ids = g.ids.filter(function (id) { return GONE.indexOf(id) < 0 });
-    g.labels = labels;
+    if (!keptIds.length) { BP_TAB_GROUPS.splice(i, 1); continue; }
+    g.ids = keptIds; g.labels = keptLabels;
   }
   /* 工单泳道的触点 */
   for (const id of GONE) delete TASK_STEPS[id];
@@ -9428,7 +9440,7 @@ const SHOW_CANCEL_INTERCEPT_AND_SPLIT = false;
  * 原来只有「有差异 → 差异复核」一条岔路，01～04 四步没有任何异常出口。
  * 这里把现场本来就有、而蓝图里已存在对应场景的三条接上：
  *   打开任务时找不到任务   → 实物盲收 S06（盲收的触发点就在这里：没任务可打开）
- *   打开任务时已被取消     → 拒收退回 S2B
+ *   打开任务时已被取消     → 拒收退回 S2B（S2B 现已隐藏，这条出口因此没了，见下方 note(2)）
  *   验收完发现信息录错     → 建档后信息更正 S10
  *
  * 一个步骤只能挂一个判断菱形，所以「有没有这张任务」做成第 3 步的菱形
@@ -9458,6 +9470,8 @@ const SHOW_CANCEL_INTERCEPT_AND_SPLIT = false;
   };
   add(2, 's2b', 'S2B · 已取消：拒收退回');
   add(4, 's10', 'S10 · 验收后信息更正');
+  /* add() 本身按存在性过滤，所以 S2B 隐藏时上面那句自动空转。
+     但「打开任务时发现已被取消」这件事还在，只是图上没了去处 —— 记在说明里。 */
 
   /* 还没有归处的两条异常：写进待确认，不硬造场景 */
   const note = (i, extra) => {
@@ -9469,6 +9483,11 @@ const SHOW_CANCEL_INTERCEPT_AND_SPLIT = false;
   note(1, '【还没有归处的异常】任务没生成（建档通过了但任务没出来）、或任务推给了错的人'
         + '（映射表不准）。这两种用户在 App 上看不出区别 —— 都是「待办里没有」，'
         + '所以要有一条让收货人反馈「我这儿应该有货但没任务」的路，否则只能打电话。【业务已确认：通知按发货地点发给对应的仓管／保养站收件人】但联系人和实际验收人不是一个人的情况确实存在。业务给的处理顺序是：员工扫码扫不到 → 员工联系管理员补录 → 二次比对 → 系统支持管理员把这张验收任务转派给实际验收人。待确认：转派这一步现在蓝图里没有 —— 验收侧目前只有工单侧（T1 主管端）有转派，要不要在这一格加一个「转派验收任务」的动作、谁有权转派、转派要不要留痕，待业务定。');
+  note(2, '【原来挂在这一步的「已取消要拒收」出口没有了】业务确认「已发货后取消」三支'
+        + '（在途拦截／拒收退回／部分取消）现实里都没有，S2B 已随开关隐藏，'
+        + '这个入口按存在性自动摘掉了，不会留下点不开的按钮。'
+        + '待确认：打开任务时发现这批已被取消，现场该怎么办 —— 图上现在没有答案。'
+        + '开关 SHOW_CANCEL_INTERCEPT_AND_SPLIT 改回 true 可恢复原样。');
 
   try {
     if (localStorage.getItem('asset-blueprint-custom-v4') && typeof persistBlueprint === 'function') persistBlueprint();
@@ -9559,10 +9578,17 @@ const SHOW_CANCEL_INTERCEPT_AND_SPLIT = false;
       yesLabel: '全部正常', yes: '整单转已验收，进可用库存，直接走 06',
       noLabel: '部分异常', no: '系统强制拆单：正常件 → 06 已验收，异常件 → S4／S6 复核' },
   ];
+  /* 这里是整体赋值，会盖掉 addFlow2Exceptions 按存在性加过的入口。
+     l1／s10 不能按存在性过滤：跑到这里时流程3 的 l1 还没建出来，
+     过滤会把末步那两个出口一起滤掉（和 STAGES 那个坑是同一个，踩过两次了）。
+     只有 s2b 需要判断 —— 它会被「已发货后取消」的隐藏开关收走，
+     留着就是个点不开的按钮。 */
   scenarioBranchIndex.s9 = {
-    2: [['s2b', 'S2B · 已取消：拒收退回']],
     5: [['l1', '流程3 · 领料安装'], ['s10', 'S10 · 验收后信息更正']],
   };
+  if (singleScenarios.some(x => x[0] === 's2b')) {
+    scenarioBranchIndex.s9[2] = [['s2b', 'S2B · 已取消：拒收退回']];
+  }
 
   /* ── 新场景：部分放行 ── */
   if (!singleScenarios.some(x => x[0] === 's9p')) {
