@@ -5950,6 +5950,8 @@ function bpRestoreBar(sid, cols) {
   const r = bpHiddenRows(sid), c = bpHiddenCols(sid);
   if (!r.length && !c.length) return '';
   if (!blueprintEditing) {
+    /* review 版按 e 进不去编辑态，这条提示就成了死话 —— 不渲染。 */
+    if (!ALLOW_BLUEPRINT_EDIT) return '';
     return `<div class="bpHiddenHint noTextEdit">已隐藏 ${r.length} 行、${c.length} 列（按 e 进入编辑可恢复）</div>`;
   }
   const rowBtns = r.map(x => {
@@ -6213,6 +6215,8 @@ function bpStructBar(sid) {
   const ops = bpStructOps(sid), dels = ops.filter(o => o && o.op === 'del');
   if (!dels.length) return '';
   if (!blueprintEditing) {
+    /* review 版按 e 进不去编辑态，这条提示就成了死话 —— 不渲染。 */
+    if (!ALLOW_BLUEPRINT_EDIT) return '';
     return `<div class="bpHiddenHint noTextEdit">已删除 ${dels.length} 个节点（按 e 进入编辑可恢复）</div>`;
   }
   const btns = dels.map(o =>
@@ -6311,6 +6315,8 @@ function bpElBar(sid) {
   const dels = ops.filter(o => o && o.op === 'elDel');
   if (!dels.length) return '';
   if (!blueprintEditing) {
+    /* review 版按 e 进不去编辑态，这条提示就成了死话 —— 不渲染。 */
+    if (!ALLOW_BLUEPRINT_EDIT) return '';
     return `<div class="bpHiddenHint noTextEdit">已删除 ${dels.length} 个元素（按 e 进入编辑可恢复）</div>`;
   }
   const btns = dels.map(o => {
