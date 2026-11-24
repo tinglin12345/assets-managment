@@ -2025,7 +2025,8 @@ function readShareMode(){
      &&/^https?:$/.test(String(location.protocol||''))
      &&!isLocalOnlyHost()
      &&String(location.hostname||'').indexOf('.')>=0) mode='review';
-  shareMode=SHARE_MODES[mode]?mode:'owner';
+  /* review 版：由 .build-share.js 硬写成只读，URL 参数也改不回去 */
+  shareMode='review';
   document.body.classList.toggle('reviewOnly',!canEdit());
   document.body.dataset.shareMode=shareMode;
 }
