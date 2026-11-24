@@ -1,6 +1,9 @@
-# 这个目录只该有 index.html 一个文件。
+# 这个目录只该有两个页面：
+#   index.html   完整版（和桌面那份源文件一致）
+#   review.html  给业务方评审的那份，由 .build-share.js 构建
 # 任何别的东西都是误放进来的，不要跟着发到线上。
 *
 !index.html
+!review.html
 !.gitignore
 !.nojekyll
