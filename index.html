@@ -7738,7 +7738,34 @@ function alltextByTitle(i){
   return t ? ':' + t : String(i);        /* 取不到标题就退回下标，至少不报错 */
 }
 function alltextScope(el){const host=el.closest('[data-column],[data-front],[data-decision],[data-branch]');if(host){for(const a of ['data-column','data-front','data-decision','data-branch'])if(host.hasAttribute(a))return a.slice(5)+alltextByTitle(Number(host.getAttribute(a)));}const sec=el.closest('.swimSection')?'swim':el.closest('.artifactSection')?'art':'head';return sec}
-function enableAllBlueprintText(){const roots=[document.querySelector('.flowTitle'),document.querySelector('.flowCanvas'),document.querySelector('.swimSection'),document.querySelector('.artifactSection')];let leaves=[];for(const root of roots){if(!root)continue;root.querySelectorAll('h3,h4,strong,small,p,th,td,.swimColHead,.swimCorner,.swimLane,.bpLabel,.nodeRole,.realDiamond,.entrySpec b,.entrySpec strong,.entrySpec p,.nodeArtifact span,.swimNotice,.artifactNote,.stageText,.laneText,.pageName,.btnChip,.stChip,.stKeep,.stLoc,.specNote,.phaseCell i').forEach(el=>{if(el.children.length===0&&el.textContent.trim()&&!el.dataset.edit&&!el.closest('.editBar')&&!el.closest('.noTextEdit')&&!el.closest('.expandedStageCell')&&!el.closest('.expandedStageLabel')&&!el.closest('.expandControls'))leaves.push(el)})}const seen={};leaves.forEach(el=>{const base=activeScenario+':'+alltextScope(el)+'/'+el.localName+(el.className?'.'+String(el.className).trim().split(/\s+/)[0]:'');seen[base]=(seen[base]||0)+1;const k=base+'#'+seen[base];el.dataset.alltext=k;if(allBlueprintText[k]!==undefined)el.textContent=allBlueprintText[k];if(blueprintEditing){el.contentEditable='true';el.setAttribute('spellcheck','false')}else el.removeAttribute('contenteditable')})}
+/* 角色徽章的文字覆盖：一次性清掉，并且以后不再产生。
+ *
+ * 为什么要单独清一遍：上面只是不再「应用」覆盖，但旧的键还躺在
+ * localStorage 的 asset-blueprint-custom-v4 里，导出时会跟着带走，
+ * 换台机器打开又活了。所以这里把它们从内存里删掉再存一次。
+ *
+ * 键长这样：场景:作用域/span.nodeRole#序号　—— 按 /span.nodeRole# 认就够。
+ * 用一次性标记，避免每次刷新都写一遍 localStorage。 */
+function purgeNodeRoleTextOverrides(){
+  const FLAG='asset-blueprint-noderole-override-purged-v1';
+  try{ if(localStorage.getItem(FLAG))return }catch(e){ return }
+  let n=0;
+  if(allBlueprintText&&typeof allBlueprintText==='object'){
+    for(const k of Object.keys(allBlueprintText)){
+      if(String(k).indexOf('/span.nodeRole#')>=0){ delete allBlueprintText[k]; n++ }
+    }
+  }
+  try{
+    if(n&&typeof persistBlueprint==='function')persistBlueprint();
+    localStorage.setItem(FLAG,'1');
+  }catch(e){ /* 无本地存储时忽略 */ }
+  if(n&&typeof console!=='undefined'&&console.log)
+    console.log('已清掉 '+n+' 条盖在角色徽章上的旧文字覆盖（角色名现在只认文件）');
+  return n;
+}
+window.purgeNodeRoleTextOverrides=purgeNodeRoleTextOverrides;
+function enableAllBlueprintText(){
+  purgeNodeRoleTextOverrides();const roots=[document.querySelector('.flowTitle'),document.querySelector('.flowCanvas'),document.querySelector('.swimSection'),document.querySelector('.artifactSection')];let leaves=[];for(const root of roots){if(!root)continue;root.querySelectorAll('h3,h4,strong,small,p,th,td,.swimColHead,.swimCorner,.swimLane,.bpLabel,.realDiamond,.entrySpec b,.entrySpec strong,.entrySpec p,.nodeArtifact span,.swimNotice,.artifactNote,.stageText,.laneText,.pageName,.btnChip,.stChip,.stKeep,.stLoc,.specNote,.phaseCell i').forEach(el=>{if(el.children.length===0&&el.textContent.trim()&&!el.dataset.edit&&!el.closest('.editBar')&&!el.closest('.noTextEdit')&&!el.closest('.expandedStageCell')&&!el.closest('.expandedStageLabel')&&!el.closest('.expandControls'))leaves.push(el)})}const seen={};leaves.forEach(el=>{const base=activeScenario+':'+alltextScope(el)+'/'+el.localName+(el.className?'.'+String(el.className).trim().split(/\s+/)[0]:'');seen[base]=(seen[base]||0)+1;const k=base+'#'+seen[base];el.dataset.alltext=k;if(allBlueprintText[k]!==undefined)el.textContent=allBlueprintText[k];if(blueprintEditing){el.contentEditable='true';el.setAttribute('spellcheck','false')}else el.removeAttribute('contenteditable')})}
 document.addEventListener('input',e=>{let key=e.target.dataset?.alltext;if(key&&blueprintEditing){allBlueprintText[key]=e.target.textContent;persistBlueprint()}},true);
 document.addEventListener('focusout',e=>{let key=e.target.dataset?.alltext;if(key&&blueprintEditing){allBlueprintText[key]=e.target.textContent;persistBlueprint();requestAnimationFrame(drawSwimLines)}},true);
 /* 连线锚点：按指定的边算出出入点和朝外方向；没指定就自动挑朝向对方的那条边 */
@@ -7790,7 +7817,12 @@ function buildArtifacts(current){const items=scenarioArtifacts[current[0]]||[];r
 const extraBlueprintScenarios=[["s8", "Scenario 08", "PO 修改：型号或数量", "上游变更｜流程待确认", [["需求方", "提出变更", "说明原 PO、修改原因和数量或型号。", "采购系统／沟通", ""], ["采购人员", "确认供应商发货情况", "核对是否已经发货。", "GSS／供应商", ""], ["审批人员", "按规则审批变更", "确认审批路径和权限。", "采购系统", ""], ["采购人员", "通知供应商并更新 PO", "确认双方执行的最终订单。", "采购系统／沟通", ""], ["总部管理员", "核对建档数据", "如已导入，核对是否需要更正组件信息。", "CKFM Web（建议）", ""]]], ["s9", "Scenario 09", "一张 PO 多地点发货", "发运场景｜流程待确认", [["采购人员", "确认收货地点", "明确分公司仓库或保养站。", "GSS／采购系统", ""], ["供应商", "按地点分配组件", "整理每件序列号的计划目的地。", "供应商清单", ""], ["供应商", "分别发运", "实物按约定地点发出。", "线下物流", ""], ["总部管理员", "导入发运清单", "按序列号和地点核对。", "导入平台待确认", ""], ["收货人", "各地点扫码核对", "仓库或保养站各自验收。", "CKFM App", ""]]], ["s10", "Scenario 10", "建档后信息更正", "建档异常｜流程待确认", [["总部管理员", "发现组件信息错误", "核对序列号、型号、物权或计划地点。", "CKFM Web（建议）", ""], ["业务责任人", "确认正确依据", "核对供应商清单、PO或资产凭证。", "业务沟通", ""], ["总部管理员", "按权限更正信息", "输入更正内容及原因。", "CKFM Web（建议）", ""], ["系统", "记录更正结果", "展示最新信息和修改履历。", "CKFM 台账（建议）", ""], ["相关收货人", "核实后续影响", "已验收组件如受影响需再次核对。", "CKFM App／沟通", ""]]]];
 extraBlueprintScenarios.forEach(scene=>{if(!singleScenarios.some(x=>x[0]===scene[0]))singleScenarios.push(scene);if(!detailedBlueprint[scene[0]])detailedBlueprint[scene[0]]=scene[4].map(x=>[[x[3]+'｜触点待确认',x[2]+' 具体界面与字段需业务确认。'],['处理规则待确认','责任人、数据来源及处理结果需业务与开发核实。']]);integrationSteps[scene[0]]={1:'both',3:'both'};});
 const BLUEPRINT_FILE_LITERALS={scenarios:JSON.parse(JSON.stringify(singleScenarios)),details:JSON.parse(JSON.stringify(detailedBlueprint)),decisions:JSON.parse(JSON.stringify(blueprintDecisions))};
-loadBlueprint();restoreResetScenario();extraBlueprintScenarios.forEach(scene=>{if(!singleScenarios.some(x=>x[0]===scene[0]))singleScenarios.push(scene)});
+loadBlueprint();
+/* 紧跟 loadBlueprint：allBlueprintText 刚从存档读进来，
+   趁任何渲染之前把盖在角色徽章上的旧覆盖清掉。
+   只放在 enableAllBlueprintText 里不够 —— 那个要有真 DOM 才跑。 */
+if(typeof purgeNodeRoleTextOverrides==='function')purgeNodeRoleTextOverrides();
+restoreResetScenario();extraBlueprintScenarios.forEach(scene=>{if(!singleScenarios.some(x=>x[0]===scene[0]))singleScenarios.push(scene)});
 if(!Array.isArray(blueprintDecisions.s1))blueprintDecisions.s1=[];
 if(!blueprintDecisions.s1.some(x=>x.target==='s2')){blueprintDecisions.s1.push({after:0,title:'供应商是否已经发货？',yes:'否：继续取消',no:'是：货物已发出',target:'s2',follow:'no'});if(Array.isArray(linkEdits.s1)){let a=linkEdits.s1.findIndex(x=>x.from==='a0'&&x.to==='a1');if(a>=0)linkEdits.s1.splice(a,1);for(const e of [{from:'a0',to:'d0',type:'behavior'},{from:'d0',to:'a1',type:'behavior'},{from:'d0',to:'b0',type:'behavior'}])if(!linkEdits.s1.some(x=>x.from===e.from&&x.to===e.to))linkEdits.s1.push(e)}}
 const scenarioS3=singleScenarios.find(x=>x[0]==='s3');
@@ -11062,7 +11094,9 @@ function blankSystemTouchpoints() {
          + '是人工识别、且排在质保期之后。两者不一样，这里按你的走。'
          + '待确认：物权字段在建档时是否必填 —— 空着系统就判不出来，会卡在这一步；'
          + '员工随手拿一台没打过标签的上去装，这里读不到物权，靠什么兜。'],
-        ['现场员工', '识别云管家物料质保期',
+        /* 11/25：业务确认这一步是备件主任和仓管在做，不是现场员工。
+           「分公司备件主任／仓管」这个写法 roleClass 已经归到仓储那一类（store）。 */
+        ['分公司备件主任／仓管', '识别云管家物料质保期',
          '通力固定资产走这条：员工识别这台云管家物料的质保期，'
          + '未到期走质量管理，已到期走失效报废。', '',
          '原图说明第 3 条：注册时发现异常并经维保 THD 流程确认无法修复时，'
@@ -11673,8 +11707,10 @@ function blankSystemTouchpoints() {
 
     /* ── a1 组织与权限 ── */
     mk('a1', '组织与权限',
-      '系统配置｜先建组织树，再配角色能看什么、能点什么，最后建账号。'
-      + '顺序不能倒：组织树不在，数据权限就没有挂靠点。',
+      '系统配置｜配角色能看什么、能点什么，再建账号。'
+      /* 11/25：业务说不需要建组织树，那一步已默认收起（见 seedHiddenAdminCols）。
+         原来这句写的是「先建组织树…顺序不能倒」，收起来之后就得改口。 */
+      + '组织层级本期不在这里维护，数据权限直接按分公司和库位配。',
       [
         ['总部管理员', '建组织树',
          '按总部 → 分公司 → 保养站建层级，可增删改、拖拽调整。', '',
@@ -11768,8 +11804,11 @@ function blankSystemTouchpoints() {
 
     /* ── a3 时间与催办 ── */
     mk('a3', '时间与催办',
-      '系统配置｜各环节多久算超时、超时之后催谁、什么事要走审批。'
-      + '这是全流程依赖最密的一块：34 处涉及时效，16 处涉及催办升级，22 处涉及审批。',
+      '系统配置｜各环节多久算超时、超时之后催谁。'
+      /* 11/25：业务说不需要「配审批人与条件」，那一步已默认收起。
+         审批那部分走泛微，CKFM 不再建一套（板块说明里本来就这么写）。 */
+      + '审批走泛微，这里不配审批人。'
+      + '这是全流程依赖最密的一块：34 处涉及时效，16 处涉及催办升级。',
       [
         ['总部管理员', '配时效阈值',
          '填每个环节的天数：到货验收超时、临期提醒提前量（默认 30 天）、'
@@ -11823,8 +11862,9 @@ function blankSystemTouchpoints() {
 
     /* ── a4 通知与对接 ── */
     mk('a4', '通知与对接',
-      '系统配置｜哪个环节通知谁、走哪个渠道、消息怎么写；'
-      + '以及外部系统的开关、连通测试和同步频率。',
+      '系统配置｜哪个环节通知谁、走哪个渠道、消息怎么写。'
+      /* 11/25：业务说不需要「管外部系统对接」，那一步已默认收起。 */
+      + '外部系统的开关与同步频率本期不在前端配。',
       [
         ['总部管理员', '配消息通知',
          '每个环节：通知哪个角色、走哪个渠道（App 推送／企微／短信／邮件）、'
@@ -11860,6 +11900,35 @@ function blankSystemTouchpoints() {
         ['开关与连通测试、选同步频率', '对接外部系统', '同步频率 → 状态多久看得见'],
       ]);
 
+  /* ───────── 系统管理中心里业务说不需要的三步，默认收起来 ─────────
+   *
+   * 11/25 业务确认不需要：A1 建组织树、A3 配审批人与条件、A4 管外部系统对接。
+   *
+   * 用「隐藏列」而不是从数据里删，理由是索引：
+   * 那 227 条用户编辑是按「场景:字段:列号」定位的（a1 上就有 4 条）。
+   * 一旦把 a1 的第 0 步从数组里删掉，后面两步的下标全往前挪一位，
+   * a1:roleDetail:1 就会写到「管用户账号」那一列上 —— 文字串列，比没删更糟。
+   * 隐藏列走的是 data-col（步骤下标），下标不动，编辑照旧对得上。
+   *
+   * 另起一个标记而不是复用 -v1：-v1 早就被打过了，复用的话这三列一次都不会收。
+   * 同样是一次性标记 —— 你手动按 e 放出来之后，刷新不会又被收回去。
+   */
+  (function seedHiddenAdminCols() {
+    const FLAG = 'asset-blueprint-admin-cols-hidden-v2';
+    try { if (localStorage.getItem(FLAG)) return; } catch (e) { return; }
+    const GONE = [['a1', '建组织树'], ['a3', '配审批人与条件'], ['a4', '管外部系统对接']];
+    for (const [sid, title] of GONE) {
+      const sc = singleScenarios.find(x => x[0] === sid);
+      if (!sc || !Array.isArray(sc[4])) continue;
+      const i = sc[4].findIndex(s => s && String(s[1]) === title);
+      if (i < 0) continue;
+      const cur = (blueprintHidden.cols[sid] || []).slice();
+      if (cur.indexOf(i) < 0) cur.push(i);
+      blueprintHidden.cols[sid] = cur;
+    }
+    if (typeof saveBpHidden === 'function') saveBpHidden();
+    try { localStorage.setItem(FLAG, '1'); } catch (e) { /* 忽略 */ }
+  })();
     /* tab 组 */
     BP_TAB_GROUPS.push({
       name: '系统管理中心',
@@ -13030,6 +13099,15 @@ function blankSystemTouchpoints() {
    * 同样只关渲染：MAPPING 表、NOT_IN_CHART 文案、CSS 规则都留着，
    * 改回 true 就恢复。蓝色那条（场景确实在原图里、写它对应哪一段）不受影响。 */
   const SHOW_CHART_SUGGEST_NOTES = false;
+  /* 原图折叠块里那条蓝色说明（.bizChartMap，不带 suggest）——
+   * 写的是「本场景对应原图哪一段」，比如「对应图中『连接状态=离线/断连』那条线：…」。
+   * 11/25 业务要求每个流程下面这块都去掉：评审时他们看的是蓝图本身，
+   * 这段逐句比对原图的话占了一大片，反而把图挤下去了。
+   *
+   * 同样只关渲染。MAPPING 表整张留着，而且别处还在用它 ——
+   * 变更说明（.gen-change-doc.js）的「口径差异」那一节就是从 MAPPING 取的，
+   * 所以不能删数据，删了那份文档会少一节。改回 true 就恢复。 */
+  const SHOW_CHART_MAP_NOTES = false;
   function attachChart(stage, id) {
     const host = document.getElementById('flowContent');
     if (!host) return;
@@ -13047,6 +13125,7 @@ function blankSystemTouchpoints() {
           /* 黄块＝原图里没有这个场景；蓝块＝在原图里，写它对应哪一段 */
           const isSuggest = (map === NOT_IN_CHART || id === 'l5');
           if (isSuggest && !SHOW_CHART_SUGGEST_NOTES) return '';
+          if (!isSuggest && !SHOW_CHART_MAP_NOTES) return '';
           return '<div class="bizChartMap' + (isSuggest ? ' suggest' : '') + '">' + esc(map) + '</div>';
         })() +
         '<div class="bizChartImgWrap"><img class="bizChartImg" alt="业务流程图：' + esc(stage.chart.title) + '" src="' + IMG[stage.chart.key] + '" onclick="openBizChartZoom(\'' + stage.chart.key + '\')"></div>' +
