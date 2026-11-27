@@ -46,7 +46,7 @@ story-cards/
 正本在 `story-cards/`。改完回到工作目录（`资产管理/`）跑：
 
 ```bash
-node .gen-story-md.js 项目管理      # 重新生成 概览.md 与 用户故事拆卡.md
+node .gen-story-md.js 项目仓库/项目管理      # 重新生成 概览.md 与 用户故事拆卡.md
 python3 .patch-story-cards.py       # 把卡与面板注入蓝图 HTML
 node .build-share.js                # 重建 review 版
 node .run-all.js                    # 38 项测试 ＋ 20 项校验，必须全过
